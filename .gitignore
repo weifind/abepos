@@ -1,2 +1,4 @@
 abepos.conf
 *.conf
+build/
+ybcoin_scrypt/build/
