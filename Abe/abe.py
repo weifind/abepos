@@ -2375,6 +2375,8 @@ def main(argv):
         }
     conf.update(DataStore.CONFIG_DEFAULTS)
 
+
+    #解析参数
     args, argv = readconf.parse_argv(argv, conf)
     if not argv:
         pass
@@ -2416,11 +2418,14 @@ See abe.conf for commented examples.""")
     if args.auto_agpl:
         import tarfile
 
-    #store = make_store(args)
-    #if (not args.no_serve):
-    #    serve(store)
+    #print args
+    #sys.exit('123')
+
+    #DataStore init,catch_up()
+    store = make_store(args)
+    if (not args.no_serve):
+        serve(store)
     return 0
 
 if __name__ == '__main__':
-    sys.exit('exit')
     sys.exit(main(sys.argv[1:]))

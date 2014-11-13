@@ -141,7 +141,7 @@ class DataStore(object):
             store.sqllog.setLevel(logging.ERROR)
         store.module = __import__(args.dbtype)
         store.conn = store.connect()
-	store.conn.ping(True);
+	    store.conn.ping(True);
         store.cursor = store.conn.cursor()
         store._blocks = {}
 
