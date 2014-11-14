@@ -187,6 +187,7 @@ class Abe:
             "template": abe.template,
             "chain": None,
             }
+        logging.debug("call.start");
         if 'QUERY_STRING' in env:
             page['params'] = urlparse.parse_qs(env['QUERY_STRING'])
 
@@ -2407,10 +2408,9 @@ See abe.conf for commented examples.""")
             % (argv[0],))
         return 1
 
-    logging.basicConfig(
-        stream=sys.stdout,
-        level=logging.DEBUG,
-        format=DEFAULT_LOG_FORMAT)
+    LOG_FILENAME = '/tmp/python_debug.log'
+    logging.basicConfig(filename=LOG_FILENAME,level=logging.DEBUG)
+    #logging.basicConfig(stream=sys.stdout,level=logging.DEBUG,format=DEFAULT_LOG_FORMAT)
     if args.logging is not None:
         import logging.config as logging_config
         logging_config.dictConfig(args.logging)

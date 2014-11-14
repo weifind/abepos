@@ -1,0 +1,34 @@
+<VirtualHost *>
+    ServerName abepos.ifind
+    Alias /static/ /home/ifind/workspace/abepos/Abe/htdocs/
+    Alias /robots.txt /home/ifind/workspace/abepos/Abe/htdocs/robots.txt
+    Alias /favicon.ico /home/ifind/workspace/abepos/Abe/htdocs/favicon.ico
+    Alias / /usr/lib/cgi-bin/abe.fcgi/
+
+    # Raise this if you get server errors mentioning "mod_fcgid:
+    # read data timeout in 40 seconds"
+    FcgidIOTimeout 40
+
+    # Uncomment to log Abe requests.
+    ErrorLog /var/log/abe_error.log
+    LogLevel info
+    CustomLog /var/log/abe_access.log combined
+
+    <Directory /> 
+        Options FollowSymLinks 
+        AllowOverride all 
+    </Directory> 
+
+    <Directory "/home/ifind/workspace/abepos/Abe/htdocs/">
+        Options FollowSymLinks MultiViews 
+        AllowOverride all 
+        Require all granted 
+    </Directory> 
+
+    <Directory "/usr/lib/cgi-bin"> 
+        AllowOverride None 
+        Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch 
+        Allow from all 
+        Require all granted 
+    </Directory> 
+</VirtualHost>
