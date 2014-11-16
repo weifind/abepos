@@ -108,8 +108,7 @@ def mixup_blocks(store, ds, count, datadir_chain_id = None, seed = None):
                      WHERE block_id = ?
                        AND chain_id = ?""",
                                 (b['block_id'], chain_id)):
-                    store.log.info("block %d already in chain %d",
-                                   b['block_id'], chain_id)
+                    #store.log.info("block %d already in chain %d",b['block_id'], chain_id)
                     b = None
                 else:
                     if b['height'] == 0:

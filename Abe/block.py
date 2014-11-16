@@ -27,7 +27,7 @@ import logging
 import json
 
 import version
-import DataStore
+import BlockStore
 import readconf
 
 # bitcointools -- modified deserialize.py to return raw transaction
@@ -118,7 +118,8 @@ START DATA
 MAX_UNSPENT_ADDRESSES = 200
 
 def make_store(args):
-    store = DataStore.new(args)
+    store = BlockStore.new(args)
+    store.catch_up()
     return store
 
 class NoSuchChainError(Exception):
@@ -204,7 +205,7 @@ class Abe:
             # Always be up-to-date, even if we means having to wait
             # for a response!  XXX Could use threads, timers, or a
             # cron job.
-            #abe.store.catch_up()
+            abe.store.catch_up()
 
             handler(page)
         except PageNotFound:
@@ -2218,7 +2219,7 @@ def format_difficulty(diff):
     return str(idiff) + ret
 
 def hash_to_address_link(version, hash, dotdot):
-    if hash == DataStore.NULL_PUBKEY_HASH:
+    if hash == BlockStore.NULL_PUBKEY_HASH:
         return 'Destroyed'
     if hash is None:
         return 'UNKNOWN'
@@ -2372,7 +2373,7 @@ def main(argv):
             "CONTENT_TYPE": DEFAULT_CONTENT_TYPE,
             },
         }
-    conf.update(DataStore.CONFIG_DEFAULTS)
+    conf.update(BlockStore.CONFIG_DEFAULTS)
 
 
     #解析参数
@@ -2394,7 +2395,7 @@ See abe.conf for commented examples.""")
         return 0
     elif argv[0] in ('-v', '--version'):
         print ABE_APPNAME, ABE_VERSION
-        print "Schema version", DataStore.SCHEMA_VERSION
+        print "Schema version", BlockStore.SCHEMA_VERSION
         return 0
     elif argv[0] == '--print-htdocs-directory':
         print find_htdocs()
@@ -2416,6 +2417,7 @@ See abe.conf for commented examples.""")
     if args.auto_agpl:
         import tarfile
 
+    #BlockStore init,catch_up()
     store = make_store(args)
     if (not args.no_serve):
         serve(store)

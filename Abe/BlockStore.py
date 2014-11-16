@@ -1,6 +1,6 @@
 # Copyright(C) 2011,2012 by John Tobey <John.Tobey@gmail.com>
 
-# DataStore.py: back end database access for Abe.
+# BlockStore.py: back end database access for Abe.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -103,7 +103,7 @@ class MerkleRootMismatch(InvalidBlock):
         return 'Block header Merkle root does not match its transactions. ' \
             'block hash=%s' % (ex.block_hash.encode('hex'))
 
-class DataStore(object):
+class BlockStore(object):
 
     """
     Bitcoin data storage class based on DB-API 2 and SQL1992 with
@@ -141,7 +141,7 @@ class DataStore(object):
             store.sqllog.setLevel(logging.ERROR)
         store.module = __import__(args.dbtype)
         store.conn = store.connect()
-	store.conn.ping(True)
+	store.conn.ping(True);
         store.cursor = store.conn.cursor()
         store._blocks = {}
 
@@ -155,7 +155,7 @@ class DataStore(object):
         else:
             store.keep_scriptsig = CONFIG_DEFAULTS['keep_scriptsig']
 
-        #store.refresh_ddl()
+        store.refresh_ddl()
 
         if store.config is None:
             store.initialize()
@@ -172,7 +172,6 @@ class DataStore(object):
                 % (store.config['schema_version'], SCHEMA_VERSION))
 
         store._set_sql_flavour()
-        """
         store._init_datadirs()
         store.no_bit8_chain_ids = store._find_no_bit8_chain_ids(
             args.ignore_bit8_chains)
@@ -184,7 +183,6 @@ class DataStore(object):
             store.commit_bytes = int(store.commit_bytes)
 
         store.use_firstbits = (store.config['use_firstbits'] == "true")
-        """
 
     def connect(store):
         cargs = store.args.connect_args
@@ -2885,4 +2883,4 @@ store._ddl['txout_approx'],
         return ret
 
 def new(args):
-    return DataStore(args)
+    return BlockStore(args)

@@ -17,7 +17,7 @@ import DataStore
 import readconf
 
 import deserialize
-import util  # Added functions.
+import util
 import base58
 
 __version__ = version.__version__
@@ -144,11 +144,10 @@ def format_time(nTime):
     import time
     return time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(int(nTime)))
 
-import DataStore
-import sys
-
 def main(argv):
     address = "YUtt2eM2C3ABwtgdoxFSGhjKoA7QhDNRFU"
+    hash_key = "3cad5da280a613eb8ca46553586da3ef0f0a0727"
+
     version, binaddr = decode_check_address(address)
     body = []
     if binaddr is None:
@@ -191,6 +190,9 @@ def main(argv):
     store = DataStore.new(args)
     dbhash = store.binin(binaddr)
 
+    print hash_to_address('N', store.binout(hash_key))
+    return
+
     chains = {}
     balance = {}
     received = {}
@@ -215,7 +217,6 @@ def main(argv):
 
     txpoints = []
     max_rows = 10000
-    print dbhash
     in_rows = store.selectall("""
         SELECT
             (b.block_nTime+28800),
@@ -269,7 +270,6 @@ def main(argv):
                       (dbhash,))
         if max_rows >= 0 and len(out_rows) > max_rows:
             too_many = True
-        print out_rows
     if too_many:
         body += ["<p>I'm sorry, this address has too many records"
                  " to display.</p>"]
