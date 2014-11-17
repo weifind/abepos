@@ -145,8 +145,8 @@ def format_time(nTime):
     return time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(int(nTime)))
 
 def main(argv):
-    address = "YUtt2eM2C3ABwtgdoxFSGhjKoA7QhDNRFU"
-    hash_key = "3cad5da280a613eb8ca46553586da3ef0f0a0727"
+    address = "Yms5uhm9SeDW1U4zyij3AYpJ6QpFzLJcFh"
+    hash_key = "f6d096e02add58206a54885e71b9c9ed4a495d03"
 
     version, binaddr = decode_check_address(address)
     body = []
@@ -190,8 +190,8 @@ def main(argv):
     store = DataStore.new(args)
     dbhash = store.binin(binaddr)
 
+    print dbhash
     print hash_to_address('N', store.binout(hash_key))
-    return
 
     chains = {}
     balance = {}
@@ -216,12 +216,12 @@ def main(argv):
         count[txpoint['is_in']] += 1
 
     txpoints = []
-    max_rows = 10000
+    max_rows = 10
     in_rows = store.selectall("""
         SELECT
             (b.block_nTime+28800),
             cc.chain_id,
-            b.block_height,
+            b.block_id,
             1,
             b.block_hash,
             tx.tx_hash,
@@ -235,12 +235,13 @@ def main(argv):
           JOIN txout prevout ON (txin.txout_id = prevout.txout_id)
           JOIN pubkey ON (pubkey.pubkey_id = prevout.pubkey_id)
          WHERE pubkey.pubkey_hash = ?
-           AND cc.in_longest = 1""" + ("" if max_rows < 0 else """
+        """ + ("" if max_rows < 0 else """
          LIMIT ?"""),
                   (dbhash,)
                   if max_rows < 0 else
                   (dbhash, max_rows + 1))
 
+    print in_rows
     too_many = False
     if max_rows >= 0 and len(in_rows) > max_rows:
         too_many = True
@@ -250,7 +251,7 @@ def main(argv):
             SELECT
                 (b.block_nTime+28800),
                 cc.chain_id,
-                b.block_height,
+                b.block_id,
                 0,
                 b.block_hash,
                 tx.tx_hash,
@@ -270,6 +271,7 @@ def main(argv):
                       (dbhash,))
         if max_rows >= 0 and len(out_rows) > max_rows:
             too_many = True
+        print out_rows
     if too_many:
         body += ["<p>I'm sorry, this address has too many records"
                  " to display.</p>"]
