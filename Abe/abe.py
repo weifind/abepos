@@ -70,12 +70,12 @@ DEFAULT_TEMPLATE = """
     %(body)s
     <p style="font-size: smaller">
         <span style="font-style: italic">
-            由 <a href="%(ABE_URL)s">Ybcoin-abe</a> 提供技术支持
+            由 <a href="%(ABE_URL)s">abepos</a> 提供技术支持
         </span>
-        %(download)s
+        <!-- %(download)s
         , 需要您的捐助
-        <!-- <a href="%(dotdot)saddress/%(DONATIONS_BTC)s">BTC</a> -->
-        <a href="%(dotdot)saddress/%(DONATIONS_YBC)s">YBC</a>
+        <a href="%(dotdot)saddress/%(DONATIONS_BTC)s">BTC</a>
+        <a href="%(dotdot)saddress/%(DONATIONS_YBC)s">YBC</a>-->
     </p>
 </body>
 </html>
@@ -84,7 +84,7 @@ DEFAULT_TEMPLATE = """
 DEFAULT_LOG_FORMAT = "%(message)s"
 
 # XXX This should probably be a property of chain, or even a query param.
-LOG10COIN = 6
+LOG10COIN = 10
 COIN = 10 ** LOG10COIN
 
 # It is fun to change "6" to "3" and search lots of addresses.
@@ -152,7 +152,7 @@ class Abe:
                 abe.template_vars.get('download', ''))
         abe.base_url = args.base_url
         abe.address_history_rows_max = int(
-            args.address_history_rows_max or 5000)
+            args.address_history_rows_max or 100000)
 
         if args.shortlink_type is None:
             abe.shortlink_type = ("firstbits" if store.use_firstbits else
@@ -248,9 +248,43 @@ class Abe:
     def handle_chains(abe, page):
         page['title'] = ABE_APPNAME + ' 新版区块查询'
         body = page['body']
+        body += [abe.search_form(page),'\n']
         now = time.time()
-        body += [abe.search_form(page), '\n']
         return
+
+        rows = abe.store.selectall("""
+            SELECT c.chain_name, b.block_id, (b.block_nTime+28800), b.block_hash,
+                   b.block_total_seconds, b.block_total_satoshis,
+                   b.block_satoshi_seconds,
+                   b.block_total_ss, c.chain_id, c.chain_code3,
+                   c.chain_address_version, c.chain_last_block_id
+              FROM chain c
+              JOIN block b ON (c.chain_last_block_id = b.block_id)
+             ORDER BY c.chain_name
+        """)
+        for row in rows:
+            name = row[0]
+            chain = abe._row_to_chain((row[8], name, row[9], row[10], row[11]))
+            body += [
+                '<tr><td><a href="chain/', escape(name), '">',
+                escape(name), '</a></td><td>', escape(chain['code3']), '</td>']
+
+            if row[1] is not None:
+                (height, nTime, hash) = (
+                    int(row[1]), int(row[2]), abe.store.hashout_hex(row[3]))
+
+                body += [
+                    '<td><a href="block/', hash, '">', height, '</a></td>',
+                    '<td>', format_time(nTime), '</td>']
+
+                #get supply TODO
+                body += [
+                    '<td>3000000</td>'
+                    ]
+            body += ['</tr>\n']
+        body += ['</table>\n']
+        if len(rows) == 0:
+            body += ['<p>No block data found.</p>\n']
 
     def _chain_fields(abe):
         return ["id", "name", "code3", "address_version", "last_block_id"]
@@ -429,8 +463,9 @@ class Abe:
         body += ['</table>\n<p>', nav, '</p>\n']
 
     def _show_block(abe, where, bind, page, dotdotblock, chain):
-        address_version = ('\0' if chain is None
+        address_version = ('\u004e' if chain is None
                            else chain['address_version'])
+        logging.debug(chain['address_version'])
         body = page['body']
         sql = """
             SELECT
@@ -615,16 +650,13 @@ class Abe:
                                  escape('Ybcoin'), '</a> ', height,'<br />']
             else:
                 for txin in tx['in']:
-                    body += hash_to_address_link(
-                        address_version, txin['pubkey_hash'], page['dotdot'])
-                    body += [': ', format_satoshis(txin['value'], chain),
-                             '<br />']
+                    body += hash_to_address_link(address_version, txin['pubkey_hash'], page['dotdot'])
+                    body += [': ', format_satoshis(txin['value'], chain),'<br />']
             body += ['</td><td>']
             for txout in tx['out']:
 
               if txout['value'] > 0:
-                  body += hash_to_address_link(
-                  address_version, txout['pubkey_hash'], page['dotdot'])
+                  body += hash_to_address_link(address_version, txout['pubkey_hash'], page['dotdot'])
                   body += [': ', format_satoshis(txout['value'], chain), '<br />']
               else:
                    if txnum ==1:
@@ -665,7 +697,7 @@ class Abe:
             SELECT MIN(cc.chain_id), cc.block_id, cc.block_id
               FROM chain_candidate cc
               JOIN block b ON (cc.block_id = b.block_id)
-             WHERE b.block_hash = ? AND cc.in_longest = 1
+             WHERE b.block_hash = ?
              GROUP BY cc.block_id, cc.block_id""",
             (dbhash,))
         if row is None:
@@ -960,8 +992,7 @@ class Abe:
                 too_many = True
 
         if too_many:
-            body += ["<p>I'm sorry, this address has too many records"
-                     " to display.</p>"]
+            body += ["<p>记录太多了，^-^.</p>"]
             return
 
         rows = []
@@ -984,7 +1015,7 @@ class Abe:
             txpoints.append(txpoint)
 
         if (not chain_ids):
-            body += ['<p>Address not seen on the network.</p>']
+            body += ['<p>此地址不存在.</p>']
             return
 
         def format_amounts(amounts, link):
@@ -1055,7 +1086,7 @@ class Abe:
     def search_form(abe, page):
         q = (page['params'].get('q') or [''])[0]
         return [
-            '<p>输入地址、区块序号或hash、交易ID或公钥hash、币种进行搜索:</p>\n'
+            '<p>输入地址、区块序号或hash、交易ID或公钥hash进行搜索:</p>\n'
             '<form action="', page['dotdot'], 'search"><p>\n'
             '<input name="q" size="64" value="', escape(q), '" />'
             '<button type="submit">搜索</button>\n'
@@ -1842,9 +1873,9 @@ See abe.conf for commented examples.""")
             % (argv[0],))
         return 1
 
-    #LOG_FILENAME = '/tmp/python_debug.log'
-    #logging.basicConfig(filename=LOG_FILENAME,level=logging.DEBUG)
-    logging.basicConfig(stream=sys.stdout,level=logging.DEBUG,format=DEFAULT_LOG_FORMAT)
+    LOG_FILENAME = '/tmp/python_debug.log'
+    logging.basicConfig(filename=LOG_FILENAME,level=logging.DEBUG)
+    #logging.basicConfig(stream=sys.stdout,level=logging.DEBUG,format=DEFAULT_LOG_FORMAT)
     if args.logging is not None:
         import logging.config as logging_config
         logging_config.dictConfig(args.logging)
