@@ -219,7 +219,7 @@ def main(argv):
     max_rows = 10
     in_rows = store.selectall("""
         SELECT
-            (b.block_nTime+28800),
+            b.block_nTime,
             cc.chain_id,
             b.block_id,
             1,
@@ -249,7 +249,7 @@ def main(argv):
     if not too_many:
         out_rows = store.selectall("""
             SELECT
-                (b.block_nTime+28800),
+                b.block_nTime,
                 cc.chain_id,
                 b.block_id,
                 0,

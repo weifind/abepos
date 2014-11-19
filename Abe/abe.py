@@ -70,9 +70,10 @@ DEFAULT_TEMPLATE = """
     %(body)s
     <p style="font-size: smaller">
         <span style="font-style: italic">
-            由 <a href="%(ABE_URL)s">abepos</a> 提供技术支持
+        Powered By 元宝团队
         </span>
         <!-- %(download)s
+        由 <a href="%(ABE_URL)s">abepos</a> 提供技术支持
         , 需要您的捐助
         <a href="%(dotdot)saddress/%(DONATIONS_BTC)s">BTC</a>
         <a href="%(dotdot)saddress/%(DONATIONS_YBC)s">YBC</a>-->
@@ -253,7 +254,7 @@ class Abe:
         return
 
         rows = abe.store.selectall("""
-            SELECT c.chain_name, b.block_id, (b.block_nTime+28800), b.block_hash,
+            SELECT c.chain_name, b.block_id, b.block_nTime, b.block_hash,
                    b.block_total_seconds, b.block_total_satoshis,
                    b.block_satoshi_seconds,
                    b.block_total_ss, c.chain_id, c.chain_code3,
@@ -333,7 +334,7 @@ class Abe:
                 block_hash,
                 block_version,
                 block_hashMerkleRoot,
-                (block_nTime+28800),
+                block_nTime,
                 block_nBits,
                 block_nNonce,
                 block_id,
@@ -594,7 +595,7 @@ class Abe:
 
         block_rows = abe.store.selectall("""
             SELECT c.chain_name, cc.in_longest,
-                   (b.block_nTime+28800), b.block_id, b.block_hash,
+                   b.block_nTime, b.block_id, b.block_hash,
                    block_tx.tx_pos
               FROM chain c
               JOIN chain_candidate cc ON (cc.chain_id = c.chain_id)
@@ -799,7 +800,7 @@ class Abe:
         max_rows = abe.address_history_rows_max
         in_rows = abe.store.selectall("""
             SELECT
-                (b.block_nTime+28800),
+                b.block_nTime,
                 cc.chain_id,
                 b.block_id,
                 1,
@@ -828,7 +829,7 @@ class Abe:
         if not too_many:
             out_rows = abe.store.selectall("""
                 SELECT
-                    (b.block_nTime+28800),
+                    b.block_nTime,
                     cc.chain_id,
                     b.block_id,
                     0,

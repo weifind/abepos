@@ -262,7 +262,7 @@ class Abe:
         now = time.time()
 
         rows = abe.store.selectall("""
-            SELECT c.chain_name, b.block_height, (b.block_nTime+28800), b.block_hash,
+            SELECT c.chain_name, b.block_height, b.block_nTime, b.block_hash,
                    b.block_total_seconds, b.block_total_satoshis,
                    b.block_satoshi_seconds,
                    b.block_total_ss, c.chain_id, c.chain_code3,
@@ -399,7 +399,7 @@ class Abe:
             return
 
         rows = abe.store.selectall("""
-            SELECT b.block_hash, b.block_height, (b.block_nTime+28800), b.block_num_tx,
+            SELECT b.block_hash, b.block_height, b.block_nTime, b.block_num_tx,
                    b.block_nBits, b.block_value_out,
                    b.block_total_seconds, b.block_satoshi_seconds,
                    b.block_total_satoshis, b.block_ss_destroyed,
@@ -507,7 +507,7 @@ class Abe:
                 block_hash,
                 block_version,
                 block_hashMerkleRoot,
-                (block_nTime+28800),
+                block_nTime,
                 block_nBits,
                 block_nNonce,
                 block_height,
@@ -796,7 +796,7 @@ class Abe:
 
         block_rows = abe.store.selectall("""
             SELECT c.chain_name, cc.in_longest,
-                   (b.block_nTime+28800), b.block_height, b.block_hash,
+                   b.block_nTime, b.block_height, b.block_hash,
                    block_tx.tx_pos
               FROM chain c
               JOIN chain_candidate cc ON (cc.chain_id = c.chain_id)
@@ -1001,7 +1001,7 @@ class Abe:
         max_rows = abe.address_history_rows_max
         in_rows = abe.store.selectall("""
             SELECT
-                (b.block_nTime+28800),
+                b.block_nTime,
                 cc.chain_id,
                 b.block_height,
                 1,
@@ -1030,7 +1030,7 @@ class Abe:
         if not too_many:
             out_rows = abe.store.selectall("""
                 SELECT
-                    (b.block_nTime+28800),
+                    b.block_nTime,
                     cc.chain_id,
                     b.block_height,
                     0,
@@ -1711,7 +1711,7 @@ class Abe:
 
         rows = abe.store.selectall("""
             SELECT b.block_height,
-                   (b.block_nTime+28800),
+                   b.block_nTime,
                    b.block_chain_work,
                    b.block_nBits
               FROM block b
@@ -1799,7 +1799,7 @@ class Abe:
 
         rows = abe.store.selectall("""
             SELECT b.block_height,
-                   (b.block_nTime+28800),
+                   b.block_nTime,
                    b.block_chain_work,
                    b.block_nBits
               FROM block b
