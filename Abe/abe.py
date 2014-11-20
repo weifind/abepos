@@ -946,7 +946,7 @@ class Abe:
     def search_form(abe, page):
         q = (page['params'].get('q') or [''])[0]
         return [
-            '<p>输入地址、区块序号或hash、交易ID或公钥hash进行搜索:</p>\n'
+            '<p>输入地址或hash、交易ID或公钥hash进行搜索:</p>\n'
             '<form action="', page['dotdot'], 'search"><p>\n'
             '<input name="q" size="64" value="', escape(q), '" />'
             '<button type="submit">搜索</button>\n'
