@@ -70,11 +70,10 @@ DEFAULT_TEMPLATE = """
     %(body)s
     <p style="font-size: smaller">
         <span style="font-style: italic">
-        Powered By 元宝团队
         </span>
-        <!-- %(download)s
+        %(download)s
         由 <a href="%(ABE_URL)s">abepos</a> 提供技术支持
-        , 需要您的捐助
+        <!-- , 需要您的捐助
         <a href="%(dotdot)saddress/%(DONATIONS_BTC)s">BTC</a>
         <a href="%(dotdot)saddress/%(DONATIONS_YBC)s">YBC</a>-->
     </p>
@@ -247,7 +246,7 @@ class Abe:
         return getattr(abe, 'handle_' + cmd, None)
 
     def handle_chains(abe, page):
-        page['title'] = ABE_APPNAME + ' 新版区块查询'
+        page['title'] = '新元宝币(New Ybcoin) 区块查询'
         body = page['body']
         body += [abe.search_form(page),'\n']
         now = time.time()
