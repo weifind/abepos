@@ -145,10 +145,11 @@ def format_time(nTime):
     return time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(int(nTime)))
 
 def main(argv):
-    address = "Yms5uhm9SeDW1U4zyij3AYpJ6QpFzLJcFh"
-    hash_key = "f6d096e02add58206a54885e71b9c9ed4a495d03"
+    address = "yVFH5gLBEvjeKyH2eniXEqez2eLNCmq4Kb"
+    hash_key = "efcca051039f8b791842e16994f9e29b5f8fc445"
 
     version, binaddr = decode_check_address(address)
+    print version
     body = []
     if binaddr is None:
         body += ['<p>Not a valid address.</p>']
@@ -192,6 +193,7 @@ def main(argv):
 
     print dbhash
     print hash_to_address('N', store.binout(hash_key))
+    return
 
     chains = {}
     balance = {}

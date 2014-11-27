@@ -64,10 +64,8 @@ DEFAULT_TEMPLATE = """
     <title>%(title)s</title>
 </head>
 <body>
-    <h1><a href="%(dotdot)schains"><img
-     src="%(dotdot)s%(STATIC_PATH)slogo32.png" alt="Abe logo" /></a> %(h1)s
-    </h1>
-    %(body)s
+    <h1 class="search_logo"><a href="%(dotdot)schains"><img src="%(dotdot)s%(STATIC_PATH)slogo32.png" alt="Abe logo" /></a> %(h1)s</h1>
+    <div class="list">%(body)s
     <p style="font-size: smaller">
         <span style="font-style: italic">
         </span>
@@ -76,7 +74,7 @@ DEFAULT_TEMPLATE = """
         <!-- , 需要您的捐助
         <a href="%(dotdot)saddress/%(DONATIONS_BTC)s">BTC</a>
         <a href="%(dotdot)saddress/%(DONATIONS_YBC)s">YBC</a>-->
-    </p>
+    </p></div>
 </body>
 </html>
 """
@@ -222,6 +220,7 @@ class Abe:
         except:
             abe.store.rollback()
             raise
+        #page['body'] += ['<p class="error">服务维护中</p>\n']
 
         abe.store.rollback()  # Close imlicitly opened transaction.
 
@@ -249,42 +248,9 @@ class Abe:
         page['title'] = '新元宝币(New Ybcoin) 区块查询'
         body = page['body']
         body += [abe.search_form(page),'\n']
+	#body += ['系统维护中']
         now = time.time()
         return
-
-        rows = abe.store.selectall("""
-            SELECT c.chain_name, b.block_id, b.block_nTime, b.block_hash,
-                   b.block_total_seconds, b.block_total_satoshis,
-                   b.block_satoshi_seconds,
-                   b.block_total_ss, c.chain_id, c.chain_code3,
-                   c.chain_address_version, c.chain_last_block_id
-              FROM chain c
-              JOIN block b ON (c.chain_last_block_id = b.block_id)
-             ORDER BY c.chain_name
-        """)
-        for row in rows:
-            name = row[0]
-            chain = abe._row_to_chain((row[8], name, row[9], row[10], row[11]))
-            body += [
-                '<tr><td><a href="chain/', escape(name), '">',
-                escape(name), '</a></td><td>', escape(chain['code3']), '</td>']
-
-            if row[1] is not None:
-                (height, nTime, hash) = (
-                    int(row[1]), int(row[2]), abe.store.hashout_hex(row[3]))
-
-                body += [
-                    '<td><a href="block/', hash, '">', height, '</a></td>',
-                    '<td>', format_time(nTime), '</td>']
-
-                #get supply TODO
-                body += [
-                    '<td>3000000</td>'
-                    ]
-            body += ['</tr>\n']
-        body += ['</table>\n']
-        if len(rows) == 0:
-            body += ['<p>No block data found.</p>\n']
 
     def _chain_fields(abe):
         return ["id", "name", "code3", "address_version", "last_block_id"]
@@ -333,7 +299,7 @@ class Abe:
                 block_hash,
                 block_version,
                 block_hashMerkleRoot,
-                block_nTime,
+                (block_nTime+28800),
                 block_nBits,
                 block_nNonce,
                 block_id,
@@ -594,7 +560,7 @@ class Abe:
 
         block_rows = abe.store.selectall("""
             SELECT c.chain_name, cc.in_longest,
-                   b.block_nTime, b.block_id, b.block_hash,
+                   (b.block_nTime+28800), b.block_id, b.block_hash,
                    block_tx.tx_pos
               FROM chain c
               JOIN chain_candidate cc ON (cc.chain_id = c.chain_id)
@@ -761,7 +727,7 @@ class Abe:
 
     def handle_address(abe, page):
         address = wsgiref.util.shift_path_info(page['env'])
-        if address in (None, '') or page['env']['PATH_INFO'] != '':
+        if address in (None, '', 'yVFH5gLBEvjeKyH2eniXEqez2eLNCmq4Kb') or page['env']['PATH_INFO'] != '':
             raise PageNotFound()
 
         body = page['body']
@@ -799,7 +765,7 @@ class Abe:
         max_rows = abe.address_history_rows_max
         in_rows = abe.store.selectall("""
             SELECT
-                b.block_nTime,
+                (b.block_nTime+28800),
                 cc.chain_id,
                 b.block_id,
                 1,
@@ -828,7 +794,7 @@ class Abe:
         if not too_many:
             out_rows = abe.store.selectall("""
                 SELECT
-                    b.block_nTime,
+                    (b.block_nTime+28800),
                     cc.chain_id,
                     b.block_id,
                     0,
@@ -851,9 +817,9 @@ class Abe:
             if max_rows >= 0 and len(out_rows) > max_rows:
                 too_many = True
 
-        if too_many:
-            body += ["<p>记录太多了，^-^.</p>"]
-            return
+        #if too_many:
+        #    body += ["<p>记录太多了，^-^.</p>"]
+        #    return
 
         rows = []
         rows += in_rows
@@ -947,11 +913,11 @@ class Abe:
         q = (page['params'].get('q') or [''])[0]
         return [
             '<p>输入地址或hash、交易ID或公钥hash进行搜索:</p>\n'
-            '<form action="', page['dotdot'], 'search"><p>\n'
-            '<input name="q" size="64" value="', escape(q), '" />'
-            '<button type="submit">搜索</button>\n'
+            '<div><form action="', page['dotdot'], 'search"><p>\n'
+            '<input name="q" size="64" value="', escape(q), '" class="search"/>'
+            '<button type="submit" class="search_btn">搜索</button>\n'
             '<br />地址或者hash值至少包含前 ',
-            HASH_PREFIX_MIN, ' 个字符</p></form>\n']
+            HASH_PREFIX_MIN, ' 个字符</porm></div>\n']
 
     def handle_search(abe, page):
         page['title'] = 'Search'
@@ -966,7 +932,7 @@ class Abe:
         if util.possible_address(q):found += abe.search_address(q)
         elif ADDR_PREFIX_RE.match(q):found += abe.search_address_prefix(q)
         if is_hash_prefix(q):       found += abe.search_hash_prefix(q)
-        found += abe.search_general(q)
+        #found += abe.search_general(q)
         abe.show_search_results(page, found)
 
     def show_search_results(abe, page, found):
