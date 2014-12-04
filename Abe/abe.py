@@ -1293,10 +1293,10 @@ class Abe:
         page['template'] = '%(body)s'
         page['body'] = body
 
-    def handle_qa(abe, page):
+    def handle_q(abe, page):
         cmd = wsgiref.util.shift_path_info(page['env'])
         if cmd is None:
-            return abe.qa(page)
+            return abe.q(page)
 
         func = getattr(abe, 'q_' + cmd, None)
         if func is None:
@@ -1304,7 +1304,7 @@ class Abe:
 
         abe.do_raw(page, func(page, page['chain']))
 
-    def qa(abe, page):
+    def q(abe, page):
         page['body'] = ['<p>支持的 APIs:</p>\n<ul>\n']
         for name in dir(abe):
             if not name.startswith("q_"):
@@ -1316,6 +1316,127 @@ class Abe:
                 page['body'] += [' - ', escape(val.__doc__)]
             page['body'] += ['</li>\n']
         page['body'] += ['</ul>\n']
+
+    def q_translate_address(abe, page, chain):
+        """将地址hash转换为地址."""
+        addr = wsgiref.util.shift_path_info(page['env'])
+        if chain is None or addr is None:
+            return '转换 CHAIN 地址.\n' \
+                '/chain/CHAIN/q/translate_address/ADDRESS\n'
+        version, hash = util.decode_check_address(addr)
+        if hash is None:
+            return addr + " (INVALID ADDRESS)"
+        return util.hash_to_address(chain['address_version'], hash)
+
+    def q_decode_address(abe, page, chain):
+        """显示地址版本的前缀和hash."""
+        addr = wsgiref.util.shift_path_info(page['env'])
+        if addr is None:
+            return "以十六进制字符串形式显示地址版本字节和公钥，用(‘:’)隔开.\n" \
+                '/q/decode_address/ADDRESS\n'
+        # XXX error check?
+        version, hash = util.decode_address(addr)
+        ret = version.encode('hex') + ":" + hash.encode('hex')
+        if util.hash_to_address(version, hash) != addr:
+            ret = "INVALID(" + ret + ")"
+        return ret
+
+    def q_checkaddress(abe, page, chain):
+        """检查地址的有效性."""
+        addr = wsgiref.util.shift_path_info(page['env'])
+        if addr is None:
+            return \
+                "返回地址版本的十六进制字符串.\n" \
+                "如果地址无效, 为兼容BBE，返回 X5, SZ, 或者 CK.\n" \
+                "/q/checkaddress/ADDRESS\n"
+        if util.possible_address(addr):
+            version, hash = util.decode_address(addr)
+            if util.hash_to_address(version, hash) == addr:
+                return version.encode('hex').upper()
+            return 'CK'
+        if len(addr) >= 26:
+            return 'X5'
+        return 'SZ'
+
+    def q_totalbc(abe, page, chain):
+        """显示全网发行币总量."""
+        if chain is None:
+            return '显示全网发行币总量.\n' \
+                '/chain/CHAIN/q/totalbc[/HEIGHT]\n'
+        height = path_info_uint(page, None)
+        if height is None:
+            row = abe.store.selectrow("""
+                SELECT b.block_total_satoshis
+                  FROM chain c
+                  LEFT JOIN block b ON (c.chain_last_block_id = b.block_id)
+                 WHERE c.chain_id = ?
+            """, (chain['id'],))
+        else:
+            row = abe.store.selectrow("""
+                SELECT b.block_total_satoshis
+                  FROM chain_candidate cc
+                  LEFT JOIN block b ON (b.block_id = cc.block_id)
+                 WHERE cc.chain_id = ?
+                   AND cc.block_height = ?
+                   AND cc.in_longest = 1
+            """, (chain['id'], height))
+            if not row:
+                return 'ERROR: block %d not seen yet' % (height,)
+        return format_satoshis(row[0], chain) if row else 0
+
+    def q_getusedaddrcount(abe, page, chain):
+	"""获取使用的地址总数"""
+	if chain is None:
+		return '获取全网使用的地址总数(包括发送和接收)\n' \
+			'/chain/CHAIN/q/getusedaddrcount\n'
+	sql = """SELECT COUNT(pubkey.pubkey_id) FROM pubkey"""
+	row = abe.store.selectrow(sql)
+	ret = row[0]
+	return ret
+	          
+    def q_getbalance(abe, page, chain):
+        """获取余额"""
+        addr = wsgiref.util.shift_path_info(page['env'])
+        if chain is None or addr is None:
+            return '返回一个地址的余额\n' \
+                '/chain/CHAIN/q/getbalance/ADDRESS\n'
+
+        if not util.possible_address(addr):
+            return 'ERROR: address invalid'
+
+        version, hash = util.decode_address(addr)
+        sql = """
+            SELECT COALESCE(SUM(txout.txout_value), 0)
+              FROM pubkey
+              JOIN txout ON txout.pubkey_id=pubkey.pubkey_id
+              JOIN block_tx ON block_tx.tx_id=txout.tx_id
+              JOIN block b ON b.block_id=block_tx.block_id
+              JOIN chain_candidate cc ON cc.block_id=b.block_id
+              WHERE
+                  pubkey.pubkey_hash = ? AND
+                  cc.chain_id = ? AND
+                  cc.in_longest = 1"""
+        row = abe.store.selectrow(
+            sql, (abe.store.binin(hash), chain['id']))
+        ret = float(format_satoshis(row[0], chain));
+
+        sql = """
+            SELECT COALESCE(SUM(txout.txout_value), 0)
+              FROM pubkey
+              JOIN txout ON txout.pubkey_id=pubkey.pubkey_id
+              JOIN txin ON txin.txout_id=txout.txout_id
+              JOIN block_tx ON block_tx.tx_id=txout.tx_id
+              JOIN block b ON b.block_id=block_tx.block_id
+              JOIN chain_candidate cc ON cc.block_id=b.block_id
+              WHERE
+                  pubkey.pubkey_hash = ? AND
+                  cc.chain_id = ? AND
+                  cc.in_longest = 1"""
+        row = abe.store.selectrow(
+            sql, (abe.store.binin(hash), chain['id']))
+        ret -= float(format_satoshis(row[0], chain));
+
+        return str(ret)
 
     def qa_gettop100balances(abe, page, chain):
 	"""获取地址余额top100"""
@@ -1363,50 +1484,6 @@ class Abe:
 	for i in range(10):	    
 	    ret += "%s,%.8f\n" % (sresult[i]['address'], sresult[i]['balance'])
 	return ret
-	          
-    def q_getbalance(abe, page, chain):
-        """获取余额"""
-        addr = wsgiref.util.shift_path_info(page['env'])
-        if chain is None or addr is None:
-            return '返回一个地址的余额\n' \
-                '/chain/CHAIN/q/getbalance/ADDRESS\n'
-
-        if not util.possible_address(addr):
-            return 'ERROR: address invalid'
-
-        version, hash = util.decode_address(addr)
-        sql = """
-            SELECT COALESCE(SUM(txout.txout_value), 0)
-              FROM pubkey
-              JOIN txout ON txout.pubkey_id=pubkey.pubkey_id
-              JOIN block_tx ON block_tx.tx_id=txout.tx_id
-              JOIN block b ON b.block_id=block_tx.block_id
-              JOIN chain_candidate cc ON cc.block_id=b.block_id
-              WHERE
-                  pubkey.pubkey_hash = ? AND
-                  cc.chain_id = ? AND
-                  cc.in_longest = 1"""
-        row = abe.store.selectrow(
-            sql, (abe.store.binin(hash), chain['id']))
-        ret = float(format_satoshis(row[0], chain));
-
-        sql = """
-            SELECT COALESCE(SUM(txout.txout_value), 0)
-              FROM pubkey
-              JOIN txout ON txout.pubkey_id=pubkey.pubkey_id
-              JOIN txin ON txin.txout_id=txout.txout_id
-              JOIN block_tx ON block_tx.tx_id=txout.tx_id
-              JOIN block b ON b.block_id=block_tx.block_id
-              JOIN chain_candidate cc ON cc.block_id=b.block_id
-              WHERE
-                  pubkey.pubkey_hash = ? AND
-                  cc.chain_id = ? AND
-                  cc.in_longest = 1"""
-        row = abe.store.selectrow(
-            sql, (abe.store.binin(hash), chain['id']))
-        ret -= float(format_satoshis(row[0], chain));
-
-        return str(ret)
 
     def handle_download(abe, page):
         name = abe.args.download_name
