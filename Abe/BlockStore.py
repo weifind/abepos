@@ -1632,13 +1632,15 @@ store._ddl['txout_approx'],
                 int(nTime))
 
     def import_block(store, b, chain_ids=frozenset()):
-
+        """TODO"""
         # Import new transactions.
         b['value_in'] = None
         b['value_out'] = 0
         b['value_destroyed'] = 0
         tx_hash_array = []
 
+        print b
+        sys.exit('over')
         # In the common case, all the block's txins _are_ linked, and we
         # can avoid a query if we notice this.
         all_txins_linked = True

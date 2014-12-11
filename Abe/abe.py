@@ -244,6 +244,145 @@ class Abe:
     def get_handler(abe, cmd):
         return getattr(abe, 'handle_' + cmd, None)
 
+    def handle_chain(abe, page):
+        symbol = wsgiref.util.shift_path_info(page['env'])
+        chain = abe.chain_lookup_by_name(symbol)
+        page['chain'] = chain
+
+        cmd = wsgiref.util.shift_path_info(page['env'])
+        if cmd == '':
+            page['env']['SCRIPT_NAME'] = page['env']['SCRIPT_NAME'][:-1]
+            raise Redirect()
+        if cmd == 'chain' or cmd == 'chains':
+            raise PageNotFound()
+        if cmd is not None:
+            abe.call_handler(page, cmd)
+            return
+
+        page['title'] = chain['name']
+
+        body = page['body']
+        body += abe.search_form(page)
+
+        count = get_int_param(page, 'count') or 20
+        hi = get_int_param(page, 'hi')
+        orig_hi = hi
+
+        if hi is None:
+            row = abe.store.selectrow("""
+                SELECT b.block_id
+                  FROM block b
+                  JOIN chain c ON (c.chain_last_block_id = b.block_id)
+                 WHERE c.chain_id = ?
+            """, (chain['id'],))
+            if row:
+                hi = row[0]
+        if hi is None:
+            if orig_hi is None and count > 0:
+                body += ['<p>I have no blocks in this chain.</p>']
+            else:
+                body += ['<p class="error">'
+                         'The requested range contains no blocks.</p>\n']
+            return
+
+        rows = abe.store.selectall("""
+            SELECT b.block_hash, b.block_id, (b.block_nTime+28800), b.block_num_tx,
+                   b.block_nBits, b.block_value_out,
+                   b.block_total_seconds, b.block_satoshi_seconds,
+                   b.block_total_satoshis, b.block_ss_destroyed,
+                   b.block_total_ss
+              FROM block b
+              JOIN chain_candidate cc ON (b.block_id = cc.block_id)
+             WHERE cc.chain_id = ?
+               AND cc.block_id BETWEEN ? AND ?
+               AND cc.in_longest = 1
+             ORDER BY cc.block_id DESC LIMIT ?
+        """, (chain['id'], hi - count + 1, hi, count))
+
+        if hi is None:
+            hi = int(rows[0][1])
+        basename = os.path.basename(page['env']['PATH_INFO'])
+
+        nav = ['<a href="',
+               basename, '?count=', str(count), '">&lt;&lt;</a>']
+        nav += [' <a href="', basename, '?hi=', str(hi + count),
+                 '&amp;count=', str(count), '">&lt;</a>']
+        nav += [' ', '&gt;']
+        if hi >= count:
+            nav[-1] = ['<a href="', basename, '?hi=', str(hi - count),
+                        '&amp;count=', str(count), '">', nav[-1], '</a>']
+        nav += [' ', '&gt;&gt;']
+        if hi != count - 1:
+            nav[-1] = ['<a href="', basename, '?hi=', str(count - 1),
+                        '&amp;count=', str(count), '">', nav[-1], '</a>']
+        for c in (20, 50, 100, 500, 1440):
+            nav += [' ']
+            if c != count:
+                nav += ['<a href="', basename, '?count=', str(c)]
+                if hi is not None:
+                    nav += ['&amp;hi=', str(max(hi, c - 1))]
+                nav += ['">']
+            nav += [' ', str(c)]
+            if c != count:
+                nav += ['</a>']
+
+        nav += [' <a href="', page['dotdot'], '">搜索</a>']
+
+        extra = False
+        #extra = True
+        body += ['<p>', nav, '</p>\n',
+                 '<table><tr><th>区块</th><th>大约生成时间</th>',
+                 '<th>交易数</th><th>输出值</th>',
+                 '<th>难度</th><th>已发行</th>',
+                 '<th>平均币龄</th><th>币龄</th>',
+                 '<th>% ',
+                 '<a href="https://en.bitcoin.it/wiki/Bitcoin_Days_Destroyed">',
+                 'CoinDD</a></th>',
+                 ['<th>Satoshi-seconds</th>',
+                  '<th>Total ss</th>']
+                 if extra else '',
+                 '</tr>\n']
+        for row in rows:
+            (hash, height, nTime, num_tx, nBits, value_out,
+             seconds, ss, satoshis, destroyed, total_ss) = row
+            nTime = int(nTime)
+            value_out = int(value_out)
+            seconds = int(seconds)
+            satoshis = int(satoshis or 0)
+            ss = int(ss or 0)
+            total_ss = int(total_ss or 0)
+
+            if satoshis == 0:
+                avg_age = '&nbsp;'
+            else:
+                avg_age = '%5g' % (ss / satoshis / 86400.0)
+
+            if seconds <= 0:
+                percent_destroyed = '&nbsp;'
+            else:
+                try:
+                    percent_destroyed = '%5g' % (
+                        100.0 - (100.0 * ss / total_ss)) + '%'
+                except:
+                    percent_destroyed = '0%'
+
+            body += [
+                '<tr><td><a href="', page['dotdot'], 'block/',
+                abe.store.hashout_hex(hash),
+                '">', height, '</a>'
+                '</td><td>', format_time(int(nTime)),
+                '</td><td>', num_tx,
+                '</td><td>', format_satoshis(value_out, chain),
+                '</td><td>', util.calculate_difficulty(int(nBits)),
+                '</td><td>', format_satoshis(satoshis, chain),
+                '</td><td>', avg_age,
+                '</td><td>', '%5g' % (seconds / 86400.0),
+                '</td><td>', percent_destroyed,
+                ['</td><td>', '%8g' % ss,
+                 '</td><td>', '%8g' % total_ss] if extra else '',
+                '</td></tr>\n']
+
+        body += ['</table>\n<p>', nav, '</p>\n']
     def handle_chains(abe, page):
         page['title'] = '新元宝币(New Ybcoin) 区块查询'
         body = page['body']
@@ -727,7 +866,7 @@ class Abe:
 
     def handle_address(abe, page):
         address = wsgiref.util.shift_path_info(page['env'])
-        if address in (None, '', 'yVFH5gLBEvjeKyH2eniXEqez2eLNCmq4Kb') or page['env']['PATH_INFO'] != '':
+        if address in (None, '') or page['env']['PATH_INFO'] != '':
             raise PageNotFound()
 
         body = page['body']
@@ -873,7 +1012,10 @@ class Abe:
             link = address[0 : abe.shortlink_type]
         body += abe.short_link(page, 'a/' + link)
 
-        body += ['<p>余额: '] + format_amounts(balance, True)
+        balance_last = format_amounts(balance, True)
+        if balance_last < 0:
+            balance_last = 0
+        body += ['<p>余额: '] + balance_last
 
         for chain_id in chain_ids:
             balance[chain_id] = 0  # Reset for history traversal.
@@ -1377,7 +1519,7 @@ class Abe:
                   FROM chain_candidate cc
                   LEFT JOIN block b ON (b.block_id = cc.block_id)
                  WHERE cc.chain_id = ?
-                   AND cc.block_height = ?
+                   AND cc.block_id = ?
                    AND cc.in_longest = 1
             """, (chain['id'], height))
             if not row:
