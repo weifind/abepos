@@ -1013,7 +1013,7 @@ class Abe:
         body += abe.short_link(page, 'a/' + link)
 
         balance_last = format_amounts(balance, True)
-        if balance_last < 0:
+        if balance_last <= 0:
             balance_last = 0
         body += ['<p>余额: '] + balance_last
 
