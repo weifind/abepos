@@ -1639,8 +1639,6 @@ store._ddl['txout_approx'],
         b['value_destroyed'] = 0
         tx_hash_array = []
 
-        print b
-        sys.exit('over')
         # In the common case, all the block's txins _are_ linked, and we
         # can avoid a query if we notice this.
         all_txins_linked = True
@@ -1663,9 +1661,7 @@ store._ddl['txout_approx'],
                     all_txins_linked = False
 
             if tx['value_in'] is None:
-                #b['value_in'] = None 
                 print("""transaction's value in is null,block id: %d,value_out: %d, value_des: %d """ % (int(store.new_id("block")),b['value_out'],b['value_destroyed']))
-            #elif b['value_in'] is not None:
             else:
                 b['value_in'] = b['value_in'] or 0;
                 b['value_in'] += tx['value_in']
@@ -1720,26 +1716,27 @@ store._ddl['txout_approx'],
 
         # Insert the block table row.
         try:
-            store.sql(
-                """INSERT INTO block (
-                    block_id, block_hash, block_version, block_hashMerkleRoot,
-                    block_nTime, block_nBits, block_nNonce, block_height,
-                    prev_block_id, block_chain_work, block_value_in,
-                    block_value_out, block_total_satoshis,
-                    block_total_seconds, block_total_ss, block_num_tx,
-                    search_block_id
-                ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                )""",
-                (block_id, store.hashin(b['hash']), store.intin(b['version']),
-                 store.hashin(b['hashMerkleRoot']), store.intin(b['nTime']),
-                 store.intin(b['nBits']), store.intin(b['nNonce']),
-                 b['height'], prev_block_id,
-                 store.binin_int(b['chain_work'], WORK_BITS),
-                 store.intin(b['value_in']), store.intin(b['value_out']),
-                 store.intin(b['satoshis']), store.intin(b['seconds']),
-                 store.intin(b['total_ss']),
-                 len(b['transactions']), b['search_block_id']))
+            if store.hashin(b['hash']) != "634cce8e58464e87dccdb8332225c8ebfb5a0285ae8942bf64e20575838624bb":
+                store.sql(
+                    """INSERT INTO block (
+                        block_id, block_hash, block_version, block_hashMerkleRoot,
+                        block_nTime, block_nBits, block_nNonce, block_height,
+                        prev_block_id, block_chain_work, block_value_in,
+                        block_value_out, block_total_satoshis,
+                        block_total_seconds, block_total_ss, block_num_tx,
+                        search_block_id
+                    ) VALUES (
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    )""",
+                    (block_id, store.hashin(b['hash']), store.intin(b['version']),
+                     store.hashin(b['hashMerkleRoot']), store.intin(b['nTime']),
+                     store.intin(b['nBits']), store.intin(b['nNonce']),
+                     b['height'], prev_block_id,
+                     store.binin_int(b['chain_work'], WORK_BITS),
+                     store.intin(b['value_in']), store.intin(b['value_out']),
+                     store.intin(b['satoshis']), store.intin(b['seconds']),
+                     store.intin(b['total_ss']),
+                     len(b['transactions']), b['search_block_id']))
 
         except store.module.DatabaseError:
 
@@ -2602,7 +2599,8 @@ store._ddl['txout_approx'],
                 b = store.parse_block(ds, chain_id, magic, length)
                 b["hash"] = hash
                 chain_ids = frozenset([] if chain_id is None else [chain_id])
-                store.import_block(b, chain_ids = chain_ids)
+                if store.hashin(b['hash']) != "634cce8e58464e87dccdb8332225c8ebfb5a0285ae8942bf64e20575838624bb":
+                    store.import_block(b, chain_ids = chain_ids)
                 if ds.read_cursor != end:
                     store.log.debug("Skipped %d bytes at block end",
                                     end - ds.read_cursor)
