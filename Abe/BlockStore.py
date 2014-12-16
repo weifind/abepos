@@ -1769,8 +1769,8 @@ store._ddl['txout_approx'],
             store.sql("""
                 INSERT INTO block_tx
                     (block_id, tx_id, tx_pos)
-                VALUES (?, ?, ?)""",
-                      (block_id, tx['tx_id'], tx_pos))
+                VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE block_id=?""",
+                      (block_id, tx['tx_id'], tx_pos, block_id))
             store.log.info("block_tx %d %d", block_id, tx['tx_id'])
 
         if b['height'] is not None:
@@ -2599,8 +2599,10 @@ store._ddl['txout_approx'],
                 b = store.parse_block(ds, chain_id, magic, length)
                 b["hash"] = hash
                 chain_ids = frozenset([] if chain_id is None else [chain_id])
-                if store.hashin(b['hash']) != "634cce8e58464e87dccdb8332225c8ebfb5a0285ae8942bf64e20575838624bb":
-                    store.import_block(b, chain_ids = chain_ids)
+                if store.hashin(b['hash']) == "ffb9376bf7c63484e535607937d47ff78b59dcab8f889e7aa005acbf9ee58799":
+                    print b
+                    sys.exit('223')
+                store.import_block(b, chain_ids = chain_ids)
                 if ds.read_cursor != end:
                     store.log.debug("Skipped %d bytes at block end",
                                     end - ds.read_cursor)
