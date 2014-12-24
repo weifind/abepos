@@ -1766,11 +1766,12 @@ store._ddl['txout_approx'],
         # List the block's transactions in block_tx.
         for tx_pos in xrange(len(b['transactions'])):
             tx = b['transactions'][tx_pos]
+	    # ON DUPLICATE KEY UPDATE block_id=?
             store.sql("""
                 INSERT INTO block_tx
                     (block_id, tx_id, tx_pos)
-                VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE block_id=?""",
-                      (block_id, tx['tx_id'], tx_pos, block_id))
+                VALUES (?, ?, ?)""",
+                      (block_id, tx['tx_id'], tx_pos))
             store.log.info("block_tx %d %d", block_id, tx['tx_id'])
 
         if b['height'] is not None:
