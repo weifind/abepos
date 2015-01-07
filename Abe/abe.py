@@ -39,7 +39,7 @@ __version__ = version.__version__
 
 ABE_APPNAME = "Ybcoin"
 ABE_VERSION = __version__
-ABE_URL = 'https://github.com/weifind/abepos'
+ABE_URL = 'https://yuanbaohui.com'
 
 COPYRIGHT_YEARS = '2014'
 COPYRIGHT = "Ybcoin"
@@ -70,7 +70,7 @@ DEFAULT_TEMPLATE = """
         <span style="font-style: italic">
         </span>
         %(download)s
-        由 <a href="%(ABE_URL)s">abepos</a> 提供技术支持
+        由 <a href="%(ABE_URL)s">元宝团队</a> 提供技术支持
         <!-- , 需要您的捐助
         <a href="%(dotdot)saddress/%(DONATIONS_BTC)s">BTC</a>
         <a href="%(dotdot)saddress/%(DONATIONS_YBC)s">YBC</a>-->
@@ -428,7 +428,7 @@ class Abe:
         handler(page)
 
     def _show_block(abe, where, bind, page, dotdotblock, chain):
-        address_version = ('\u004e' if chain is None
+        address_version = ('\u008c' if chain is None
                            else chain['address_version'])
         logging.debug(chain['address_version'])
         body = page['body']

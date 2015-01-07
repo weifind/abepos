@@ -45,7 +45,6 @@ def scrypt(s):
     nTime = struct.pack('<I', nTime)
     nTime = binascii.hexlify(nTime)
     nTime = int(nTime, 16)
-    print nTime
     return getPoWHash(s, nTime)
 
 # Based on CBlock::BuildMerkleTree().
@@ -119,3 +118,14 @@ def decode_address(addr):
     if len(bytes) < 25:
         bytes = ('\0' * (25 - len(bytes))) + bytes
     return bytes[:-24], bytes[-24:-4]
+
+def jsonrpc(url, method, *params):
+    import json, urllib
+    postdata = json.dumps({"jsonrpc": "2.0","method": method, "params": params, "id": "x"})
+    respdata = urllib.urlopen(url, postdata).read()
+    resp = json.loads(respdata)
+    if resp.get('error') is not None:
+        if resp['error']['code'] == -32601:
+            raise JsonrpcMethodNotFound(resp['error'], method, params)
+        raise JsonrpcException(resp['error'], method, params)
+    return resp['result']

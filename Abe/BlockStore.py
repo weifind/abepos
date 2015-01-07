@@ -66,7 +66,7 @@ CHAIN_CONFIG = [
     #{"chain":"ScTestnet",
     # "code3":"SC0", "address_version":"\x6f", "magic":"\xca\xfe\xba\xbe"},
     {"chain":"Ybcoin",
-     "code3":"YBC", "address_version":"\x4e", "magic":"\xd4\xe7\xe8\xe5"},
+     "code3":"YBC", "address_version":"\x8c", "magic":"\xd4\xe7\xe8\xe5"},
     ]
 
 NULL_HASH = "\0" * 32
@@ -183,6 +183,12 @@ class BlockStore(object):
             store.commit_bytes = int(store.commit_bytes)
 
         store.use_firstbits = (store.config['use_firstbits'] == "true")
+
+    def rpc(store, func, *params):
+        url = "http://ybcoinrpc:C4Lp8G82T85AdCbsBbB8QfVDVZpb8rrUP5fKvkRBtjoe@127.0.0.1:8622"
+        ret = util.jsonrpc(url, func, *params)
+
+        return ret
 
     def connect(store):
         cargs = store.args.connect_args
@@ -919,7 +925,7 @@ LEFT JOIN block prev ON (b.prev_block_id = prev.block_id)""",
 """CREATE TABLE abe_sequences (
     sequence_key VARCHAR(100) NOT NULL PRIMARY KEY,
     nextid NUMERIC(30)
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
             }
 
     def initialize(store):
@@ -938,7 +944,7 @@ store._ddl['configvar'],
     blkfile_number NUMERIC(8) NULL,
     blkfile_offset NUMERIC(20) NULL,
     chain_id    NUMERIC(10) NULL
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 
 # MAGIC lists the magic numbers seen in messages and block files, known
 # in the original Bitcoin source as `pchMessageStart'.
@@ -946,14 +952,14 @@ store._ddl['configvar'],
     magic_id    NUMERIC(10) NOT NULL PRIMARY KEY,
     magic       BIT(32)     UNIQUE NOT NULL,
     magic_name  VARCHAR(100) UNIQUE NOT NULL
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 
 # POLICY identifies a block acceptance policy.  Not currently used,
 # but required by CHAIN.
 """CREATE TABLE policy (
     policy_id   NUMERIC(10) NOT NULL PRIMARY KEY,
     policy_name VARCHAR(100) UNIQUE NOT NULL
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 
 # A block of the type used by Bitcoin.
 """CREATE TABLE block (
@@ -980,7 +986,7 @@ store._ddl['configvar'],
         REFERENCES block (block_id),
     FOREIGN KEY (search_block_id)
         REFERENCES block (block_id)
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 
 # CHAIN comprises a magic number, a policy, and (indirectly via
 # CHAIN_LAST_BLOCK_ID and the referenced block's ancestors) a genesis
@@ -997,7 +1003,7 @@ store._ddl['configvar'],
     FOREIGN KEY (policy_id) REFERENCES policy (policy_id),
     FOREIGN KEY (chain_last_block_id)
         REFERENCES block (block_id)
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 
 # CHAIN_CANDIDATE lists blocks that are, or might become, part of the
 # given chain.  IN_LONGEST is 1 when the block is in the chain, else 0.
@@ -1010,7 +1016,7 @@ store._ddl['configvar'],
     block_height  NUMERIC(14),
     PRIMARY KEY (chain_id, block_id),
     FOREIGN KEY (block_id) REFERENCES block (block_id)
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 """CREATE INDEX x_cc_block ON chain_candidate (block_id)""",
 """CREATE INDEX x_cc_chain_block_height
     ON chain_candidate (chain_id, block_height)""",
@@ -1021,7 +1027,7 @@ store._ddl['configvar'],
     block_id      NUMERIC(14) NOT NULL PRIMARY KEY,
     block_hashPrev BIT(256)   NOT NULL,
     FOREIGN KEY (block_id) REFERENCES block (block_id)
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 """CREATE INDEX x_orphan_block_hashPrev ON orphan_block (block_hashPrev)""",
 
 # Denormalize the relationship inverse to BLOCK.PREV_BLOCK_ID.
@@ -1031,7 +1037,7 @@ store._ddl['configvar'],
     PRIMARY KEY (block_id, next_block_id),
     FOREIGN KEY (block_id) REFERENCES block (block_id),
     FOREIGN KEY (next_block_id) REFERENCES block (block_id)
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 
 # A transaction of the type used by Bitcoin.
 """CREATE TABLE tx (
@@ -1040,7 +1046,7 @@ store._ddl['configvar'],
     tx_version    NUMERIC(10),
     tx_lockTime   NUMERIC(10),
     tx_size       NUMERIC(10)
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 
 # Presence of transactions in blocks is many-to-many.
 """CREATE TABLE block_tx (
@@ -1053,7 +1059,7 @@ store._ddl['configvar'],
         REFERENCES block (block_id),
     FOREIGN KEY (tx_id)
         REFERENCES tx (tx_id)
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 """CREATE INDEX x_block_tx_tx ON block_tx (tx_id)""",
 
 # A public key for sending bitcoins.  PUBKEY_HASH is derivable from a
@@ -1062,7 +1068,7 @@ store._ddl['configvar'],
     pubkey_id     NUMERIC(26) NOT NULL PRIMARY KEY,
     pubkey_hash   BIT(160)    UNIQUE NOT NULL,
     pubkey        BIT(520)    NULL
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 
 # A transaction out-point.
 """CREATE TABLE txout (
@@ -1075,7 +1081,7 @@ store._ddl['configvar'],
     UNIQUE (tx_id, txout_pos),
     FOREIGN KEY (pubkey_id)
         REFERENCES pubkey (pubkey_id)
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 """CREATE INDEX x_txout_pubkey ON txout (pubkey_id)""",
 
 # A transaction in-point.
@@ -1089,7 +1095,7 @@ store._ddl['configvar'],
     UNIQUE (tx_id, txin_pos),
     FOREIGN KEY (tx_id)
         REFERENCES tx (tx_id)
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 """CREATE INDEX x_txin_txout ON txin (txout_id)""",
 
 # While TXIN.TXOUT_ID can not be found, we must remember TXOUT_POS,
@@ -1099,7 +1105,7 @@ store._ddl['configvar'],
     txout_tx_hash BIT(256)    NOT NULL,
     txout_pos     NUMERIC(10) NOT NULL,
     FOREIGN KEY (txin_id) REFERENCES txin (txin_id)
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 """CREATE INDEX x_unlinked_txin_outpoint
     ON unlinked_txin (txout_tx_hash, txout_pos)""",
 
@@ -1111,7 +1117,7 @@ store._ddl['configvar'],
     FOREIGN KEY (block_id) REFERENCES block (block_id),
     FOREIGN KEY (txin_id) REFERENCES txin (txin_id),
     FOREIGN KEY (out_block_id) REFERENCES block (block_id)
-)""",
+)ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 
 store._ddl['chain_summary'],
 store._ddl['txout_detail'],
@@ -1672,10 +1678,6 @@ store._ddl['txout_approx'],
         block_id = int(store.new_id("block"))
         b['block_id'] = block_id
 
-        # Verify Merkle root.
-        #if b['hashMerkleRoot'] != util.merkle(tx_hash_array):            
-        #    raise MerkleRootMismatch(b['hash'], tx_hash_array)
-
         # Look for the parent block.
         hashPrev = b['hashPrev']
         is_genesis = hashPrev == GENESIS_HASH_PREV
@@ -1716,27 +1718,26 @@ store._ddl['txout_approx'],
 
         # Insert the block table row.
         try:
-            if store.hashin(b['hash']) != "634cce8e58464e87dccdb8332225c8ebfb5a0285ae8942bf64e20575838624bb":
-                store.sql(
-                    """INSERT INTO block (
-                        block_id, block_hash, block_version, block_hashMerkleRoot,
-                        block_nTime, block_nBits, block_nNonce, block_height,
-                        prev_block_id, block_chain_work, block_value_in,
-                        block_value_out, block_total_satoshis,
-                        block_total_seconds, block_total_ss, block_num_tx,
-                        search_block_id
-                    ) VALUES (
-                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                    )""",
-                    (block_id, store.hashin(b['hash']), store.intin(b['version']),
-                     store.hashin(b['hashMerkleRoot']), store.intin(b['nTime']),
-                     store.intin(b['nBits']), store.intin(b['nNonce']),
-                     b['height'], prev_block_id,
-                     store.binin_int(b['chain_work'], WORK_BITS),
-                     store.intin(b['value_in']), store.intin(b['value_out']),
-                     store.intin(b['satoshis']), store.intin(b['seconds']),
-                     store.intin(b['total_ss']),
-                     len(b['transactions']), b['search_block_id']))
+            store.sql(
+                """INSERT INTO block (
+                    block_id, block_hash, block_version, block_hashMerkleRoot,
+                    block_nTime, block_nBits, block_nNonce, block_height,
+                    prev_block_id, block_chain_work, block_value_in,
+                    block_value_out, block_total_satoshis,
+                    block_total_seconds, block_total_ss, block_num_tx,
+                    search_block_id
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )""",
+                (block_id, store.hashin(b['hash']), store.intin(b['version']),
+                 store.hashin(b['hashMerkleRoot']), store.intin(b['nTime']),
+                 store.intin(b['nBits']), store.intin(b['nNonce']),
+                 b['height'], prev_block_id,
+                 store.binin_int(b['chain_work'], WORK_BITS),
+                 store.intin(b['value_in']), store.intin(b['value_out']),
+                 store.intin(b['satoshis']), store.intin(b['seconds']),
+                 store.intin(b['total_ss']),
+                 len(b['transactions']), b['search_block_id']))
 
         except store.module.DatabaseError:
 
@@ -2514,53 +2515,33 @@ store._ddl['txout_approx'],
 
             # Assume blocks obey the respective policy if they get here.
             chain_id = dircfg['chain_id']
-            if chain_id is None:
-                rows = store.selectall("""
-                    SELECT chain.chain_id
-                      FROM chain
-                      JOIN magic ON (chain.magic_id = magic.magic_id)
-                     WHERE magic.magic = ?""",
-                                       (store.binin(magic),))
-                if len(rows) == 1:
-                    chain_id = rows[0][0]
-            if chain_id is None:
-                if magic[0] == chr(0):
-                    # Skip NUL bytes at block end.
-                    ds.read_cursor = offset
-                    while ds.read_cursor < len(ds.input):
-                        size = min(len(ds.input) - ds.read_cursor, 1000)
-                        data = ds.read_bytes(size).lstrip("\0")
-                        if (data != ""):
-                            ds.read_cursor -= len(data)
-                            break
-                    store.log.info("Skipped %d NUL bytes at block end",
-                                   ds.read_cursor - offset)
-                    continue
-
-                store.log.error(
-                    "Chain not found for magic number %s in block file %s at"
-                    " offset %d.  If file contents have changed, consider"
-                    " forcing a rescan: UPDATE datadir SET blkfile_number=1,"
-                    " blkfile_offset=0 WHERE dirname='%s'",
-                    repr(magic), filename, offset, dircfg['dirname'])
-                ds.read_cursor = offset
-                break
 
             length = ds.read_int32()
             if ds.read_cursor + length > len(ds.input):
-                store.log.debug("incomplete block of length %d chain %d",
-                                length, chain_id)
+                store.log.debug("incomplete block of length %d chain %d", length, chain_id)
                 ds.read_cursor = offset
                 break
             end = ds.read_cursor + length
             #block_header = ds.input[ds.read_cursor : ds.read_cursor + 80]
             #block_nTime = ds.input[ds.read_cursor + 68 : ds.read_cursor + 4]
-            hash = util.scrypt(
-                ds.input[ds.read_cursor : ds.read_cursor + 80])
+            #hash = util.scrypt(ds.input[ds.read_cursor : ds.read_cursor + 80])
             # XXX should decode target and check hash against it to
             # avoid loading garbage data.  But not for merged-mined or
             # CPU-mined chains that use different proof-of-work
             # algorithms.  Time to resurrect policy_id?
+
+            hash = util.scrypt(ds.input[ds.read_cursor : ds.read_cursor + 80])
+            b = store.parse_block(ds, chain_id, magic, length)
+
+            if store.hashin(b['hashPrev']) != '0'*64:
+                hashPrevAll = store.rpc('getblock', store.hashin(b['hashPrev']))
+                if 'nextblockhash' not in hashPrevAll.keys():
+                    print store.hashin(b['hashPrev'])
+                    continue
+                hash = store.hashout(hashPrevAll['nextblockhash'])
+                b["hash"] = hash
+            else:
+                b["hash"] = '000005aef7f601a0e5b5f17619735819d4250af7f0282954333e634335b35c9e'
 
             block_row = store.selectrow("""
                 SELECT block_id, block_height, block_chain_work,
@@ -2581,14 +2562,9 @@ store._ddl['txout_approx'],
                         "nTime":      block_row[3],
                         "seconds":    block_row[4],
                         "satoshis":   block_row[5],
-                        "ss":         block_row[6]}
-                    if store.selectrow("""
-                        SELECT 1
-                          FROM chain_candidate
-                         WHERE block_id = ?
-                           AND chain_id = ?""",
-                                    (b['block_id'], chain_id)):
-                        #store.log.info("block %d already in chain %d",b['block_id'], chain_id)
+                        "ss":         block_row[6]
+                        }
+                    if store.selectrow("SELECT 1 FROM chain_candidate WHERE block_id = ? AND chain_id = ?", (b['block_id'], chain_id)):
                         b = None
                     else:
                         if b['height'] == 0:
@@ -2597,12 +2573,7 @@ store._ddl['txout_approx'],
                             b['hashPrev'] = 'dummy'  # Fool adopt_orphans.
                         store.offer_block_to_chains(b, frozenset([chain_id]))
             else:
-                b = store.parse_block(ds, chain_id, magic, length)
-                b["hash"] = hash
                 chain_ids = frozenset([] if chain_id is None else [chain_id])
-                if store.hashin(b['hash']) == "ffb9376bf7c63484e535607937d47ff78b59dcab8f889e7aa005acbf9ee58799":
-                    print b
-                    sys.exit('223')
                 store.import_block(b, chain_ids = chain_ids)
                 if ds.read_cursor != end:
                     store.log.debug("Skipped %d bytes at block end",
