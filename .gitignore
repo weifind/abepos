@@ -3,3 +3,4 @@ abepos.conf
 *.pyc
 build/
 ybcoin_scrypt/build/
+php/
