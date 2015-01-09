@@ -279,8 +279,8 @@ class Abe:
         basename = os.path.basename(page['env']['PATH_INFO'])
 
         nav = ['<a href="',basename, '?count=', str(count), '">最新区块</a>']
-        nav += [' ', '上一页']
         nav += [' <a href="', basename, '?hi=', str(hi + count),'&amp;count=', str(count), '">下一页</a>']
+        nav += [' ', '上一页']
         if hi >= count:
             nav[-1] = ['<a href="', basename, '?hi=', str(hi - count),'&amp;count=', str(count), '">', nav[-1], '</a>']
         nav += [' ', '初始区块']
@@ -340,7 +340,7 @@ class Abe:
         body += ['</table>\n<p>', nav, '</p>\n']
 
     def handle_chains(abe, page):
-        page['title'] = '新元宝币(New Ybcoin) 区块查询'
+        page['title'] = '太一区块查询'
         body = page['body']
         body += [
             abe.search_form(page),
