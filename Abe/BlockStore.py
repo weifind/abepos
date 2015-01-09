@@ -185,7 +185,7 @@ class BlockStore(object):
         store.use_firstbits = (store.config['use_firstbits'] == "true")
 
     def rpc(store, func, *params):
-        url = "http://ybcoinrpc:C4Lp8G82T85AdCbsBbB8QfVDVZpb8rrUP5fKvkRBtjoe@127.0.0.1:8622"
+        url = "http://ybcoinrpc:ybcoinrpcpassword@127.0.0.1:8622"
         ret = util.jsonrpc(url, func, *params)
 
         return ret
@@ -2539,10 +2539,10 @@ store._ddl['txout_approx'],
                     print store.hashin(b['hashPrev'])
                     continue
                 hash = store.hashout(hashPrevAll['nextblockhash'])
-                b["hash"] = hash
             else:
-                b["hash"] = '000005aef7f601a0e5b5f17619735819d4250af7f0282954333e634335b35c9e'
+                hash = store.hashout('000005aef7f601a0e5b5f17619735819d4250af7f0282954333e634335b35c9e')
 
+            b["hash"] = hash
             block_row = store.selectrow("""
                 SELECT block_id, block_height, block_chain_work,
                        block_nTime, block_total_seconds,

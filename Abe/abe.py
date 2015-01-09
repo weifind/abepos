@@ -270,7 +270,7 @@ class Abe:
 
         if hi is None:
             row = abe.store.selectrow("""
-                SELECT b.block_id
+                SELECT b.block_height
                   FROM block b
                   JOIN chain c ON (c.chain_last_block_id = b.block_id)
                  WHERE c.chain_id = ?
@@ -286,7 +286,7 @@ class Abe:
             return
 
         rows = abe.store.selectall("""
-            SELECT b.block_hash, b.block_id, (b.block_nTime+28800), b.block_num_tx,
+            SELECT b.block_hash, b.block_height, (b.block_nTime+28800), b.block_num_tx,
                    b.block_nBits, b.block_value_out,
                    b.block_total_seconds, b.block_satoshi_seconds,
                    b.block_total_satoshis, b.block_ss_destroyed,
@@ -294,27 +294,23 @@ class Abe:
               FROM block b
               JOIN chain_candidate cc ON (b.block_id = cc.block_id)
              WHERE cc.chain_id = ?
-               AND cc.block_id BETWEEN ? AND ?
+               AND cc.block_height BETWEEN ? AND ?
                AND cc.in_longest = 1
-             ORDER BY cc.block_id DESC LIMIT ?
+             ORDER BY cc.block_height DESC LIMIT ?
         """, (chain['id'], hi - count + 1, hi, count))
 
         if hi is None:
             hi = int(rows[0][1])
         basename = os.path.basename(page['env']['PATH_INFO'])
 
-        nav = ['<a href="',
-               basename, '?count=', str(count), '">&lt;&lt;</a>']
-        nav += [' <a href="', basename, '?hi=', str(hi + count),
-                 '&amp;count=', str(count), '">&lt;</a>']
-        nav += [' ', '&gt;']
+        nav = ['<a href="',basename, '?count=', str(count), '">最新区块</a>']
+        nav += [' ', '上一页']
+        nav += [' <a href="', basename, '?hi=', str(hi + count),'&amp;count=', str(count), '">下一页</a>']
         if hi >= count:
-            nav[-1] = ['<a href="', basename, '?hi=', str(hi - count),
-                        '&amp;count=', str(count), '">', nav[-1], '</a>']
-        nav += [' ', '&gt;&gt;']
+            nav[-1] = ['<a href="', basename, '?hi=', str(hi - count),'&amp;count=', str(count), '">', nav[-1], '</a>']
+        nav += [' ', '初始区块']
         if hi != count - 1:
-            nav[-1] = ['<a href="', basename, '?hi=', str(count - 1),
-                        '&amp;count=', str(count), '">', nav[-1], '</a>']
+            nav[-1] = ['<a href="', basename, '?hi=', str(count - 1),'&amp;count=', str(count), '">', nav[-1], '</a>']
         for c in (20, 50, 100, 500, 1440):
             nav += [' ']
             if c != count:
@@ -326,21 +322,11 @@ class Abe:
             if c != count:
                 nav += ['</a>']
 
-        nav += [' <a href="', page['dotdot'], '">搜索</a>']
-
-        extra = False
-        #extra = True
         body += ['<p>', nav, '</p>\n',
                  '<table><tr><th>区块</th><th>大约生成时间</th>',
                  '<th>交易数</th><th>输出值</th>',
                  '<th>难度</th><th>已发行</th>',
-                 '<th>平均币龄</th><th>币龄</th>',
-                 '<th>% ',
-                 '<a href="https://en.bitcoin.it/wiki/Bitcoin_Days_Destroyed">',
-                 'CoinDD</a></th>',
-                 ['<th>Satoshi-seconds</th>',
-                  '<th>Total ss</th>']
-                 if extra else '',
+                 '<th>币龄</th>',
                  '</tr>\n']
         for row in rows:
             (hash, height, nTime, num_tx, nBits, value_out,
@@ -367,29 +353,68 @@ class Abe:
                     percent_destroyed = '0%'
 
             body += [
-                '<tr><td><a href="', page['dotdot'], 'block/',
-                abe.store.hashout_hex(hash),
-                '">', height, '</a>'
+                '<tr><td><a href="', page['dotdot'], 'block/',abe.store.hashout_hex(hash),'">', height, '</a>'
                 '</td><td>', format_time(int(nTime)),
                 '</td><td>', num_tx,
                 '</td><td>', format_satoshis(value_out, chain),
                 '</td><td>', util.calculate_difficulty(int(nBits)),
                 '</td><td>', format_satoshis(satoshis, chain),
-                '</td><td>', avg_age,
                 '</td><td>', '%5g' % (seconds / 86400.0),
-                '</td><td>', percent_destroyed,
-                ['</td><td>', '%8g' % ss,
-                 '</td><td>', '%8g' % total_ss] if extra else '',
                 '</td></tr>\n']
 
         body += ['</table>\n<p>', nav, '</p>\n']
+
     def handle_chains(abe, page):
         page['title'] = '新元宝币(New Ybcoin) 区块查询'
         body = page['body']
-        body += [abe.search_form(page),'\n']
-	#body += ['系统维护中']
+        body += [
+            abe.search_form(page),
+            '<table>\n',
+            '<tr><th>货币</th><th>代号</th><th>区块</th><th>时间(GMT)</th>',
+            '<th>开始时间</th><th>已发行</th>',
+            '</tr>\n']
         now = time.time()
-        return
+
+        rows = abe.store.selectall("""
+            SELECT c.chain_name, b.block_height, (b.block_nTime+28800), b.block_hash,
+                   b.block_total_seconds, b.block_total_satoshis,
+                   b.block_satoshi_seconds,
+                   b.block_total_ss, c.chain_id, c.chain_code3,
+                   c.chain_address_version, c.chain_last_block_id
+              FROM chain c
+              JOIN block b ON (c.chain_last_block_id = b.block_id)
+             ORDER BY c.chain_name
+        """)
+        for row in rows:
+            name = row[0]
+            chain = abe._row_to_chain((row[8], name, row[9], row[10], row[11]))
+            body += [
+                '<tr><td><a href="chain/', escape(name), '">',escape(name), '</a></td><td>', escape(chain['code3']), '</td>'
+                ]
+
+            if row[1] is not None:
+                (height, nTime, hash) = (int(row[1]), int(row[2]), abe.store.hashout_hex(row[3]))
+
+                body += [
+                    '<td><a href="block/', hash, '">', height, '</a></td>',
+                    '<td>', format_time(nTime), '</td>'
+                    ]
+
+                #if row[6] is not None and row[7] is not None:
+                (seconds, satoshis, ss, total_ss) = (int(row[4]), int(row[5]), int(row[6] or 0), int(row[7] or 0))
+
+                started = nTime - seconds
+                since_block = now - nTime
+
+                body += [
+                    '<td>', format_time(started)[:10], '</td>',
+                    '<td>', format_satoshis(satoshis, chain), '</td>'
+                    ]
+
+            body += ['</tr>\n']
+        body += ['</table>\n']
+        if len(rows) == 0:
+            body += ['<p>No block data found.</p>\n']
 
     def _chain_fields(abe):
         return ["id", "name", "code3", "address_version", "last_block_id"]
@@ -441,7 +466,7 @@ class Abe:
                 (block_nTime+28800),
                 block_nBits,
                 block_nNonce,
-                block_id,
+                block_height,
                 prev_block_hash,
                 block_chain_work,
                 block_value_in,
@@ -503,6 +528,7 @@ class Abe:
             body += ['<a href="', dotdotblock, hash, '">', hash, '</a><br />\n']
 
         body += [
+            '高度: ', height, '<br />\n',
             '版本: ', block_version, '<br />\n',
             '交易 Merkle Root: ', hashMerkleRoot, '<br />\n',
             '时间: ', nTime, ' (', format_time(nTime), ')<br />\n',
@@ -659,11 +685,11 @@ class Abe:
         # /chain/CHAIN/block/HASH URLs and try to keep "next block"
         # links on the chain.
         row = abe.store.selectrow("""
-            SELECT MIN(cc.chain_id), cc.block_id, cc.block_id
+            SELECT MIN(cc.chain_id), cc.block_id, cc.block_height
               FROM chain_candidate cc
               JOIN block b ON (cc.block_id = b.block_id)
-             WHERE b.block_hash = ?
-             GROUP BY cc.block_id, cc.block_id""",
+             WHERE b.block_hash = ? AND cc.in_longest = 1
+             GROUP BY cc.block_id, cc.block_height""",
             (dbhash,))
         if row is None:
             abe._show_block('block_hash = ?', (dbhash,), page, '', None)
@@ -699,7 +725,7 @@ class Abe:
 
         block_rows = abe.store.selectall("""
             SELECT c.chain_name, cc.in_longest,
-                   (b.block_nTime+28800), b.block_id, b.block_hash,
+                   (b.block_nTime+28800), b.block_height, b.block_hash,
                    block_tx.tx_pos
               FROM chain c
               JOIN chain_candidate cc ON (cc.chain_id = c.chain_id)
@@ -906,7 +932,7 @@ class Abe:
             SELECT
                 (b.block_nTime+28800),
                 cc.chain_id,
-                b.block_id,
+                b.block_height,
                 1,
                 b.block_hash,
                 tx.tx_hash,
@@ -920,7 +946,7 @@ class Abe:
               JOIN txout prevout ON (txin.txout_id = prevout.txout_id)
               JOIN pubkey ON (pubkey.pubkey_id = prevout.pubkey_id)
              WHERE pubkey.pubkey_hash = ?
-            """ + ("" if max_rows < 0 else """
+             AND cc.in_longest = 1 """ + ("" if max_rows < 0 else """
              LIMIT ?"""),
                       (dbhash,)
                       if max_rows < 0 else
@@ -935,7 +961,7 @@ class Abe:
                 SELECT
                     (b.block_nTime+28800),
                     cc.chain_id,
-                    b.block_id,
+                    b.block_height,
                     0,
                     b.block_hash,
                     tx.tx_hash,
@@ -948,7 +974,7 @@ class Abe:
                   JOIN txout ON (txout.tx_id = tx.tx_id)
                   JOIN pubkey ON (pubkey.pubkey_id = txout.pubkey_id)
                  WHERE pubkey.pubkey_hash = ?
-                """ + ("" if max_rows < 0 else """
+                 AND cc.in_longest = 1 """ + ("" if max_rows < 0 else """
                  LIMIT ?"""),
                           (dbhash, max_rows + 1)
                           if max_rows >= 0 else
@@ -1118,7 +1144,7 @@ class Abe:
               FROM chain c
               JOIN chain_candidate cc ON (cc.chain_id = c.chain_id)
               JOIN block b ON (b.block_id = cc.block_id)
-             WHERE cc.block_id = ?
+             WHERE cc.block_height = ?
              ORDER BY c.chain_name, cc.in_longest DESC
         """, (n,)))
 
@@ -1267,7 +1293,7 @@ class Abe:
 
             page['title'] = [escape(chain['name']), ' ', height]
             abe._show_block(
-                'chain_id = ? AND block_id = ? AND in_longest = 1',
+                'chain_id = ? AND block_height = ? AND in_longest = 1',
                 (chain['id'], height), page, page['dotdot'] + 'block/', chain)
             return
 
@@ -1339,7 +1365,7 @@ class Abe:
                        tod.txout_pos,
                        tod.txout_scriptPubKey,
                        tod.txout_value,
-                       tod.block_id
+                       tod.block_height
                   FROM txout_detail tod
                   LEFT JOIN txin_detail tid ON (
                              tid.chain_id = tod.chain_id
@@ -1349,7 +1375,7 @@ class Abe:
                    AND tid.prevout_id IS NULL""" + ("" if chain_id is None else """
                    AND tod.chain_id = ?""") + """
                    AND tod.pubkey_hash IN (""" + placeholders + """)
-                 ORDER BY tod.block_id,
+                 ORDER BY tod.block_height,
                        tod.tx_pos,
                        tod.txout_pos""" + ("" if max_rows < 0 else """
                  LIMIT ?"""),
@@ -1384,7 +1410,7 @@ class Abe:
                     txout.txout_pos,
                     txout.txout_scriptPubKey,
                     txout.txout_value,
-                    cc.block_id
+                    cc.block_height
                   FROM chain_candidate cc
                   JOIN block_tx ON (block_tx.block_id = cc.block_id)
                   JOIN tx ON (tx.tx_id = block_tx.tx_id)
@@ -1394,7 +1420,7 @@ class Abe:
                    AND cc.chain_id = ?""") + """
                    AND pubkey.pubkey_hash IN (""" + placeholders + """)""" + (
                     "" if max_rows < 0 else """
-                 ORDER BY cc.block_id,
+                 ORDER BY cc.block_height,
                        block_tx.tx_pos,
                        txout.txout_pos
                  LIMIT ?"""), bind)
@@ -1519,7 +1545,7 @@ class Abe:
                   FROM chain_candidate cc
                   LEFT JOIN block b ON (b.block_id = cc.block_id)
                  WHERE cc.chain_id = ?
-                   AND cc.block_id = ?
+                   AND cc.block_height = ?
                    AND cc.in_longest = 1
             """, (chain['id'], height))
             if not row:
