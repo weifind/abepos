@@ -39,9 +39,9 @@ __version__ = version.__version__
 
 ABE_APPNAME = "Ybcoin"
 ABE_VERSION = __version__
-ABE_URL = 'https://yuanbaohui.com'
+ABE_URL = 'https://github.com/weifind/abepos'
 
-COPYRIGHT_YEARS = '2014'
+COPYRIGHT_YEARS = '2015'
 COPYRIGHT = "Ybcoin"
 COPYRIGHT_URL = "mailto:ifind@sohu.com"
 
@@ -51,7 +51,6 @@ DONATIONS_YBC = ''
 # Abe-generated content should all be valid HTML and XHTML fragments.
 # Configurable templates may contain either.  HTML seems better supported
 # under Internet Explorer.
-# <p><a href="/static/graphs.htm">Ybcoin 统计数据</a></p>
 DEFAULT_CONTENT_TYPE = "text/html; charset=utf-8"
 DEFAULT_TEMPLATE = """
 <!DOCTYPE html>
@@ -71,9 +70,6 @@ DEFAULT_TEMPLATE = """
         </span>
         %(download)s
         由 <a href="%(ABE_URL)s">元宝团队</a> 提供技术支持
-        <!-- , 需要您的捐助
-        <a href="%(dotdot)saddress/%(DONATIONS_BTC)s">BTC</a>
-        <a href="%(dotdot)saddress/%(DONATIONS_YBC)s">YBC</a>-->
     </p></div>
 </body>
 </html>
@@ -90,26 +86,6 @@ ADDR_PREFIX_RE = re.compile('[1-9A-HJ-NP-Za-km-z]{6,}\\Z')
 HEIGHT_RE = re.compile('(?:0|[1-9][0-9]*)\\Z')
 HASH_PREFIX_RE = re.compile('[0-9a-fA-F]{0,64}\\Z')
 HASH_PREFIX_MIN = 6
-
-NETHASH_HEADER = """\
-blockNumber:          height of last block in interval + 1
-time:                 block time in seconds since 0h00 1 Jan 1970 UTC
-target:               decimal target at blockNumber
-avgTargetSinceLast:   harmonic mean of target over interval
-difficulty:           difficulty at blockNumber
-hashesToWin:          expected number of hashes needed to solve a block at this difficulty
-avgIntervalSinceLast: interval seconds divided by blocks
-netHashPerSecond:     estimated network hash rate over interval
-
-Statistical values are approximate.
-
-/chain/CHAIN/q/nethash[/INTERVAL[/START[/STOP]]]
-Default INTERVAL=144, START=0, STOP=infinity.
-Negative values back from the last block.
-
-blockNumber,time,target,avgTargetSinceLast,difficulty,hashesToWin,avgIntervalSinceLast,netHashPerSecond
-START DATA
-"""
 
 # How many addresses to accept in /unspent/ADDR|ADDR|...
 MAX_UNSPENT_ADDRESSES = 200
@@ -220,7 +196,6 @@ class Abe:
         except:
             abe.store.rollback()
             raise
-        #page['body'] += ['<p class="error">服务维护中</p>\n']
 
         abe.store.rollback()  # Close imlicitly opened transaction.
 
@@ -661,7 +636,6 @@ class Abe:
                page['h1'] = ['<a href="', page['dotdot'], 'chain/',
                              escape('Ybcoin'), '?hi=', height, '">',
                              escape('Ybcoin'), '</a> ', height,'<br />','\n']
-                             #'<FONT COLOR="FF0000"><FONT SIZE="-1">Proof of Stake; </FONT></FONT>','<FONT SIZE="-1">生成 ',posgen, ' 个币</FONT>','\n'
 
         body += '</table>\n'
 
@@ -678,7 +652,6 @@ class Abe:
             return
 
         # Try to show it as a block number, not a block hash.
-
         dbhash = abe.store.hashin_hex(block_hash)
 
         # XXX arbitrary choice: minimum chain_id.  Should support
@@ -982,9 +955,9 @@ class Abe:
             if max_rows >= 0 and len(out_rows) > max_rows:
                 too_many = True
 
-        #if too_many:
-        #    body += ["<p>记录太多了，^-^.</p>"]
-        #    return
+        if too_many:
+            body += ["<p>记录太多了，^-^.</p>"]
+            return
 
         rows = []
         rows += in_rows
@@ -1303,159 +1276,6 @@ class Abe:
                 shortlink_block(wsgiref.util.shift_path_info(page['env'])),
                 ('block',)))
 
-    def handle_a(abe, page):
-        arg = wsgiref.util.shift_path_info(page['env'])
-        if abe.shortlink_type == "firstbits":
-            addrs = map(
-                abe._found_address,
-                abe.store.firstbits_to_addresses(
-                    arg.lower(),
-                    chain_id = page['chain'] and page['chain']['id']))
-        else:
-            addrs = abe.search_address_prefix(arg)
-        abe.show_search_results(page, addrs)
-
-    def handle_unspent(abe, page):
-        abe.do_raw(page, abe.do_unspent(page))
-
-    def do_unspent(abe, page):
-        addrs = wsgiref.util.shift_path_info(page['env'])
-        if addrs is None:
-            addrs = []
-        else:
-            addrs = addrs.split("|");
-        if len(addrs) < 1 or len(addrs) > MAX_UNSPENT_ADDRESSES:
-            return 'Number of addresses must be between 1 and ' + \
-                str(MAX_UNSPENT_ADDRESSES)
-
-        # XXX support multiple implementations while testing.
-        impl = page['params'].get('impl', ['2'])[0]
-
-        if page['chain']:
-            chain_id = page['chain']['id']
-            bind = [chain_id]
-        else:
-            chain_id = None
-            bind = []
-
-        hashes = []
-        good_addrs = []
-        for address in addrs:
-            try:
-                hashes.append(abe.store.binin(
-                        base58.bc_address_to_hash_160(address)))
-                good_addrs.append(address)
-            except:
-                pass
-        addrs = good_addrs
-        bind += hashes
-
-        if len(hashes) == 0:  # Address(es) are invalid.
-            return 'Error getting unspent outputs'  # blockchain.info compatible
-
-        placeholders = "?" + (",?" * (len(hashes)-1))
-
-        max_rows = abe.address_history_rows_max
-        if max_rows >= 0:
-            bind += [max_rows + 1]
-
-        if impl == '1':
-            rows = abe.store.selectall("""
-                SELECT tod.tx_hash,
-                       tod.txout_pos,
-                       tod.txout_scriptPubKey,
-                       tod.txout_value,
-                       tod.block_height
-                  FROM txout_detail tod
-                  LEFT JOIN txin_detail tid ON (
-                             tid.chain_id = tod.chain_id
-                         AND tid.prevout_id = tod.txout_id
-                         AND tid.in_longest = 1)
-                 WHERE tod.in_longest = 1
-                   AND tid.prevout_id IS NULL""" + ("" if chain_id is None else """
-                   AND tod.chain_id = ?""") + """
-                   AND tod.pubkey_hash IN (""" + placeholders + """)
-                 ORDER BY tod.block_height,
-                       tod.tx_pos,
-                       tod.txout_pos""" + ("" if max_rows < 0 else """
-                 LIMIT ?"""),
-                                       tuple(bind))
-
-            if max_rows >= 0 and len(rows) > max_rows:
-                return "ERROR: too many records to display"
-
-        else:
-            spent = set()
-            for txout_id, spent_chain_id in abe.store.selectall("""
-                SELECT txin.txout_id, cc.chain_id
-                  FROM chain_candidate cc
-                  JOIN block_tx ON (block_tx.block_id = cc.block_id)
-                  JOIN txin ON (txin.tx_id = block_tx.tx_id)
-                  JOIN txout prevout ON (txin.txout_id = prevout.txout_id)
-                  JOIN pubkey ON (pubkey.pubkey_id = prevout.pubkey_id)
-                 WHERE cc.in_longest = 1""" + ("" if chain_id is None else """
-                   AND cc.chain_id = ?""") + """
-                   AND pubkey.pubkey_hash IN (""" + placeholders + """)""" + (
-                    "" if max_rows < 0 else """
-                 LIMIT ?"""), bind):
-                spent.add((int(txout_id), int(spent_chain_id)))
-
-            abe.log.debug('spent: %s', spent)
-
-            received_rows = abe.store.selectall("""
-                SELECT
-                    txout.txout_id,
-                    cc.chain_id,
-                    tx.tx_hash,
-                    txout.txout_pos,
-                    txout.txout_scriptPubKey,
-                    txout.txout_value,
-                    cc.block_height
-                  FROM chain_candidate cc
-                  JOIN block_tx ON (block_tx.block_id = cc.block_id)
-                  JOIN tx ON (tx.tx_id = block_tx.tx_id)
-                  JOIN txout ON (txout.tx_id = tx.tx_id)
-                  JOIN pubkey ON (pubkey.pubkey_id = txout.pubkey_id)
-                 WHERE cc.in_longest = 1""" + ("" if chain_id is None else """
-                   AND cc.chain_id = ?""") + """
-                   AND pubkey.pubkey_hash IN (""" + placeholders + """)""" + (
-                    "" if max_rows < 0 else """
-                 ORDER BY cc.block_height,
-                       block_tx.tx_pos,
-                       txout.txout_pos
-                 LIMIT ?"""), bind)
-                
-            if max_rows >= 0 and len(received_rows) > max_rows:
-                return "ERROR: too many records to process"
-
-            rows = []
-            for row in received_rows:
-                key = (int(row[0]), int(row[1]))
-                if key in spent:
-                    continue
-                rows.append(row[2:])
-
-        if len(rows) == 0:
-            return 'No free outputs to spend [' + '|'.join(addrs) + ']'
-
-        out = []
-        for row in rows:
-            tx_hash, out_pos, script, value, height = row
-            tx_hash = abe.store.hashout_hex(tx_hash)
-            out_pos = None if out_pos is None else int(out_pos)
-            script = abe.store.binout_hex(script)
-            value = None if value is None else int(value)
-            height = None if height is None else int(height)
-            out.append({
-                    'tx_hash': tx_hash,
-                    'tx_output_n': out_pos,
-                    'script': script,
-                    'value': value,
-                    'value_hex': None if value is None else "%x" % value,
-                    'block_number': height})
-
-        return json.dumps({ 'unspent_outputs': out }, sort_keys=True, indent=2)
-
     def do_raw(abe, page, body):
         page['content_type'] = 'text/plain'
         page['template'] = '%(body)s'
@@ -1484,6 +1304,60 @@ class Abe:
                 page['body'] += [' - ', escape(val.__doc__)]
             page['body'] += ['</li>\n']
         page['body'] += ['</ul>\n']
+
+    def q_getblockcount(abe, page, chain):
+        """显示当前区块数量"""
+        if chain is None:
+            return '显示 CHAIN 当前区块数量.\n' \
+            '/chain/CHAIN/q/getblockcount\n'
+        return abe.get_max_block_height(chain)
+
+    def q_hashtoaddress(abe, page, chain):
+        """将地址版本前缀和hash转换为地址."""
+        arg1 = wsgiref.util.shift_path_info(page['env'])
+        arg2 = wsgiref.util.shift_path_info(page['env'])
+        if arg1 is None:
+            return \
+                '将 160-bit hash和地址版本前缀转换为地址.\n' \
+                '/q/hashtoaddress/HASH[/VERSION]\n'
+
+        if page['env']['PATH_INFO']:
+            return "ERROR: Too many arguments"
+
+        if arg2 is not None:
+            # BBE-compatible HASH/VERSION
+            version, hash = arg2, arg1
+
+        elif arg1.find(":") >= 0:
+            # VERSION:HASH as returned by /q/decode_address.
+            version, hash = arg1.split(":", 1)
+
+        elif chain:
+            version, hash = chain['address_version'].encode('hex'), arg1
+
+        else:
+            # Default: Bitcoin address starting with "1".
+            version, hash = '00', arg1
+
+        try:
+            hash = hash.decode('hex')
+            version = version.decode('hex')
+        except:
+            return 'ERROR: Arguments must be hexadecimal strings of even length'
+        return util.hash_to_address(version, hash)
+
+    def q_hashpubkey(abe, page, chain):
+        """显示给定公钥的160-bit的hash."""
+        pubkey = wsgiref.util.shift_path_info(page['env'])
+        if pubkey is None:
+            return \
+                "返回 PUBKEY 的160-bit的hash.\n" \
+                "/q/hashpubkey/PUBKEY\n"
+        try:
+            pubkey = pubkey.decode('hex')
+        except:
+            return 'ERROR: invalid hexadecimal byte string.'
+        return util.pubkey_to_hash(pubkey).encode('hex').upper()
 
     def q_translate_address(abe, page, chain):
         """将地址hash转换为地址."""
@@ -1606,7 +1480,7 @@ class Abe:
 
         return str(ret)
 
-    def qa_gettop100balances(abe, page, chain):
+    def q_gettop100balances(abe, page, chain):
 	"""获取地址余额top100"""
 	if chain is None:
 		return '返回地址余额top100\n' \
@@ -1647,26 +1521,10 @@ class Abe:
 		hash = pubkey_hash.decode('hex')		
 		result.append({'address':util.hash_to_address(version, hash),'balance':final_balance})
 		
-
 	sresult = sorted(result,key=lambda x:x['balance'],reverse=True)
 	for i in range(10):	    
 	    ret += "%s,%.8f\n" % (sresult[i]['address'], sresult[i]['balance'])
 	return ret
-
-    def handle_download(abe, page):
-        name = abe.args.download_name
-        if name is None:
-            name = re.sub(r'\W+', '-', ABE_APPNAME.lower()) + '-' + ABE_VERSION
-        fileobj = lambda: None
-        fileobj.func_dict['write'] = page['start_response'](
-            '200 OK',
-            [('Content-type', 'application/x-gtar-compressed'),
-             ('Content-disposition', 'filename=' + name + '.tar.gz')])
-        import tarfile
-        with tarfile.TarFile.open(fileobj=fileobj, mode='w|gz',
-                                  format=tarfile.PAX_FORMAT) as tar:
-            tar.add(os.path.split(__file__)[0], name)
-        raise Streamed()
 
     def serve_static(abe, path, start_response):
         slen = len(abe.static_path)
