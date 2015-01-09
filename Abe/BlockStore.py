@@ -51,20 +51,6 @@ CONFIG_DEFAULTS = {
 WORK_BITS = 304  # XXX more than necessary.
 
 CHAIN_CONFIG = [
-    #{"chain":"Bitcoin",
-    # "code3":"BTC", "address_version":"\x00", "magic":"\xf9\xbe\xb4\xd9"},
-    #{"chain":"Testnet",
-    # "code3":"BC0", "address_version":"\x6f", "magic":"\xfa\xbf\xb5\xda"},
-    #{"chain":"Namecoin",
-    # "code3":"NMC", "address_version":"\x34", "magic":"\xf9\xbe\xb4\xfe"},
-    #{"chain":"Weeds", "network":"Weedsnet",
-    # "code3":"WDS", "address_version":"\xf3", "magic":"\xf8\xbf\xb5\xda"},
-    #{"chain":"BeerTokens",
-    # "code3":"BER", "address_version":"\xf2", "magic":"\xf7\xbf\xb5\xdb"},
-    #{"chain":"SolidCoin",
-    # "code3":"SCN", "address_version":"\x7d", "magic":"\xde\xad\xba\xbe"},
-    #{"chain":"ScTestnet",
-    # "code3":"SC0", "address_version":"\x6f", "magic":"\xca\xfe\xba\xbe"},
     {"chain":"Ybcoin",
      "code3":"YBC", "address_version":"\x8c", "magic":"\xd4\xe7\xe8\xe5"},
     ]
@@ -1067,7 +1053,8 @@ store._ddl['configvar'],
 """CREATE TABLE pubkey (
     pubkey_id     NUMERIC(26) NOT NULL PRIMARY KEY,
     pubkey_hash   BIT(160)    UNIQUE NOT NULL,
-    pubkey        BIT(520)    NULL
+    pubkey        BIT(520)    NULL,
+    balance       NUMERIC(30) NOT NULL DEFAULT 0
 )ENGINE=InnoDB DEFAULT CHARSET=utf8""",
 
 # A transaction out-point.
@@ -1608,10 +1595,6 @@ store._ddl['txout_approx'],
                 'prev_id']
 
     def is_descended_from(store, block_id, ancestor_id):
-#        ret = store._is_descended_from(block_id, ancestor_id)
-#        store.log.debug("%d is%s descended from %d", block_id, '' if ret else ' NOT', ancestor_id)
-#        return ret
-#    def _is_descended_from(store, block_id, ancestor_id):
         block = store._load_block(block_id)
         ancestor = store._load_block(ancestor_id)
         height = ancestor['height']

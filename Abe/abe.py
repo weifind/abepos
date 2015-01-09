@@ -1281,6 +1281,24 @@ class Abe:
         page['template'] = '%(body)s'
         page['body'] = body
 
+    def handle_top100balances(abe, page):
+	"""获取地址余额top100"""
+	sql = """SELECT pubkey_hash,balance FROM pubkey order by balance desc limit 100;"""
+	rows = abe.store.selectall(sql)
+	version = '8c'
+        version = version.decode('hex')
+        page['title'] = 'Ybcoin地址余额top100'
+        body = page['body']
+        body += ['<table><tr><td>排名</td><td>地址</td><td>余额</td></tr>']
+        index = 1
+	for row in rows:
+            hash = row[0].decode('hex')		
+            address = util.hash_to_address(version, hash)
+            body += ['<tr><td>', index, '</td><td><a href="/address/', address, '">', address, '</a>', '</td><td>', row[1], '</td></tr>']
+            index = index+1
+		
+        body += ['</table>']
+
     def handle_q(abe, page):
         cmd = wsgiref.util.shift_path_info(page['env'])
         if cmd is None:
@@ -1304,6 +1322,21 @@ class Abe:
                 page['body'] += [' - ', escape(val.__doc__)]
             page['body'] += ['</li>\n']
         page['body'] += ['</ul>\n']
+
+    def q_gettop100balances(abe, page, chain):
+	"""获取地址余额top100"""
+	if chain is None:
+		return '返回地址余额top100\n' \
+			'/chain/CHAIN/q/gettop100balances\n'
+	sql = """SELECT pubkey_hash,balance FROM pubkey order by balance desc limit 100;"""
+	rows = abe.store.selectall(sql)
+	version = chain['address_version']
+        ret = ['地址\t\t余额\n']
+	for row in rows:
+            hash = row[0].decode('hex')		
+            ret += [util.hash_to_address(version, hash), '\t\t', row[1], '\n']
+		
+	return ret
 
     def q_getblockcount(abe, page, chain):
         """显示当前区块数量"""
@@ -1479,52 +1512,6 @@ class Abe:
         ret -= float(format_satoshis(row[0], chain));
 
         return str(ret)
-
-    def q_gettop100balances(abe, page, chain):
-	"""获取地址余额top100"""
-	if chain is None:
-		return '返回地址余额top100\n' \
-			'/chain/CHAIN/q/gettop100balances\n'
-	sql = """SELECT pubkey_hash FROM pubkey;"""
-	rows = abe.store.selectall(sql)
-	version = chain['address_version']
-	ret = "addr,balance\n"	
-	result = []
-	for row in rows:
-		pubkey_hash = row[0]
-		sql = """
-	            SELECT COALESCE(SUM(txout.txout_value), 0)
-	              FROM pubkey
-	              JOIN txout ON txout.pubkey_id=pubkey.pubkey_id
-	              JOIN block_tx ON block_tx.tx_id=txout.tx_id
-	              JOIN block b ON b.block_id=block_tx.block_id
-	              JOIN chain_candidate cc ON cc.block_id=b.block_id
-	              WHERE
-	                  pubkey.pubkey_hash = ? AND
-	                  cc.chain_id = ? AND
-	                  cc.in_longest = 1"""
-		total_received = abe.store.selectrow(sql, (pubkey_hash, chain['id']))
-		sql = """
-	            SELECT COALESCE(SUM(txout.txout_value), 0)
-	              FROM pubkey
-	              JOIN txout ON txout.pubkey_id=pubkey.pubkey_id
-	              JOIN txin ON txin.txout_id=txout.txout_id
-	              JOIN block_tx ON block_tx.tx_id=txout.tx_id
-	              JOIN block b ON b.block_id=block_tx.block_id
-	              JOIN chain_candidate cc ON cc.block_id=b.block_id
-	              WHERE
-	                  pubkey.pubkey_hash = ? AND
-	                  cc.chain_id = ? AND
-	                  cc.in_longest = 1"""
-		total_sent = abe.store.selectrow(sql, (pubkey_hash, chain['id']))
-		final_balance = (total_received[0] - total_sent[0]) / 10**6
-		hash = pubkey_hash.decode('hex')		
-		result.append({'address':util.hash_to_address(version, hash),'balance':final_balance})
-		
-	sresult = sorted(result,key=lambda x:x['balance'],reverse=True)
-	for i in range(10):	    
-	    ret += "%s,%.8f\n" % (sresult[i]['address'], sresult[i]['balance'])
-	return ret
 
     def serve_static(abe, path, start_response):
         slen = len(abe.static_path)
