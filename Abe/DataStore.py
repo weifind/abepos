@@ -172,8 +172,8 @@ class DataStore(object):
                 % (store.config['schema_version'], SCHEMA_VERSION))
 
         store._set_sql_flavour()
-        """
         store._init_datadirs()
+        """
         store.no_bit8_chain_ids = store._find_no_bit8_chain_ids(
             args.ignore_bit8_chains)
 

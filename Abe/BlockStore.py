@@ -99,15 +99,6 @@ class BlockStore(object):
 
     def __init__(store, args):
         """
-        Open and store a connection to the SQL database.
-
-        args.dbtype should name a DB-API 2 driver module, e.g.,
-        "sqlite3".
-
-        args.connect_args should be an argument to the module's
-        connect() method, or None for no argument, or a list of
-        arguments, or a dictionary of named arguments.
-
         args.datadir names Bitcoin data directories containing
         blk0001.dat to scan for new blocks.
         """
@@ -1750,7 +1741,6 @@ store._ddl['txout_approx'],
         # List the block's transactions in block_tx.
         for tx_pos in xrange(len(b['transactions'])):
             tx = b['transactions'][tx_pos]
-	    # ON DUPLICATE KEY UPDATE block_id=?
             store.sql("""
                 INSERT INTO block_tx
                     (block_id, tx_id, tx_pos)
@@ -2517,11 +2507,22 @@ store._ddl['txout_approx'],
             b = store.parse_block(ds, chain_id, magic, length)
 
             if store.hashin(b['hashPrev']) != '0'*64:
-                hashPrevAll = store.rpc('getblock', store.hashin(b['hashPrev']))
-                if 'nextblockhash' not in hashPrevAll.keys():
+                hashPrevRpc = store.rpc('getblock', store.hashin(b['hashPrev']))
+                if 'nextblockhash' not in hashPrevRpc.keys():
                     print store.hashin(b['hashPrev'])
                     continue
-                hash = store.hashout(hashPrevAll['nextblockhash'])
+                hash = store.hashout(hashPrevRpc['nextblockhash'])
+                hashCurrentRpc = store.rpc('getblock', hashPrevRpc['nextblockhash'])
+                hashTxRpc = hashCurrentRpc['tx']
+                if b['transactions']:
+                    for pos in xrange(len(b['transactions'])):
+                        if pos not in b['transactions']:
+                            continue
+                        tx = b['transactions'][pos]
+                        if 'hash' not in tx:
+                            tx['hash'] = util.double_sha256(tx['tx'])
+                        if store.hashin(tx['hash']) not in hashTxRpc:
+                            del b['transactions'][pos]
             else:
                 hash = store.hashout('000005aef7f601a0e5b5f17619735819d4250af7f0282954333e634335b35c9e')
 

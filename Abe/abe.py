@@ -177,7 +177,7 @@ class Abe:
             # Always be up-to-date, even if we means having to wait
             # for a response!  XXX Could use threads, timers, or a
             # cron job.
-            #abe.store.catch_up()
+            abe.store.catch_up()
 
             handler(page)
         except PageNotFound:
@@ -1241,6 +1241,18 @@ class Abe:
                 OR UPPER(chain_code3) LIKE '%' || ? || '%'
         """, (q.upper(), q.upper())))
         return ret
+
+    def handle_a(abe, page):
+        arg = wsgiref.util.shift_path_info(page['env'])
+        if abe.shortlink_type == "firstbits":
+            addrs = map(
+                abe._found_address,
+                abe.store.firstbits_to_addresses(
+                    arg.lower(),
+                    chain_id = page['chain'] and page['chain']['id']))
+        else:
+            addrs = abe.search_address_prefix(arg)
+        abe.show_search_results(page, addrs)
 
     def handle_t(abe, page):
         abe.show_search_results(
