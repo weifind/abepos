@@ -342,13 +342,16 @@ class Abe:
     def handle_chains(abe, page):
         page['title'] = '太一区块查询'
         body = page['body']
+        body += [abe.search_form(page)]
+        now = time.time()
+        
+        return
         body += [
             abe.search_form(page),
             '<table>\n',
             '<tr><th>货币</th><th>代号</th><th>区块</th><th>时间(GMT)</th>',
             '<th>开始时间</th><th>已发行</th>',
             '</tr>\n']
-        now = time.time()
 
         rows = abe.store.selectall("""
             SELECT c.chain_name, b.block_height, (b.block_nTime+28800), b.block_hash,
@@ -1295,7 +1298,7 @@ class Abe:
 
     def handle_top100balances(abe, page):
 	"""获取地址余额top100"""
-	sql = """SELECT pubkey_hash,balance FROM pubkey order by balance desc limit 100;"""
+	sql = """SELECT pubkey_hash,balance FROM pubkey order by balance desc limit 30;"""
 	rows = abe.store.selectall(sql)
 	version = '8c'
         version = version.decode('hex')
@@ -1340,7 +1343,7 @@ class Abe:
 	if chain is None:
 		return '返回地址余额top100\n' \
 			'/chain/CHAIN/q/gettop100balances\n'
-	sql = """SELECT pubkey_hash,balance FROM pubkey order by balance desc limit 100;"""
+	sql = """SELECT pubkey_hash,balance FROM pubkey order by balance desc limit 30;"""
 	rows = abe.store.selectall(sql)
 	version = chain['address_version']
         ret = ['地址\t\t余额\n']

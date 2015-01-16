@@ -2560,14 +2560,12 @@ store._ddl['txout_approx'],
                 chain_ids = frozenset([] if chain_id is None else [chain_id])
                 store.import_block(b, chain_ids = chain_ids)
                 if ds.read_cursor != end:
-                    store.log.debug("Skipped %d bytes at block end",
-                                    end - ds.read_cursor)
+                    store.log.debug("Skipped %d bytes at block end",end - ds.read_cursor)
 
             ds.read_cursor = end
 
             bytes_done += length
             if bytes_done >= store.commit_bytes:
-                store.log.debug("commit")
                 store.save_blkfile_offset(dircfg, ds.read_cursor)
                 store.commit()
                 store._refresh_dircfg(dircfg)
@@ -2623,9 +2621,7 @@ store._ddl['txout_approx'],
              WHERE dirname = ?""", (dircfg['dirname'],))
         if row:
             number, offset = map(int, row)
-            if (number > dircfg['blkfile_number'] or
-                (number == dircfg['blkfile_number'] and
-                 offset > dircfg['blkfile_offset'])):
+            if (number > dircfg['blkfile_number'] or (number == dircfg['blkfile_number'] and offset > dircfg['blkfile_offset'])):
                 dircfg['blkfile_number'] = number
                 dircfg['blkfile_offset'] = offset
 
