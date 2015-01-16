@@ -177,7 +177,7 @@ class Abe:
             # Always be up-to-date, even if we means having to wait
             # for a response!  XXX Could use threads, timers, or a
             # cron job.
-            abe.store.catch_up()
+            #abe.store.catch_up()
 
             handler(page)
         except PageNotFound:
