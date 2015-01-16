@@ -39,7 +39,7 @@ __version__ = version.__version__
 
 ABE_APPNAME = "Ybcoin"
 ABE_VERSION = __version__
-ABE_URL = 'https://github.com/weifind/abepos'
+ABE_URL = 'https://yuanbaohui.com/coins'
 
 COPYRIGHT_YEARS = '2015'
 COPYRIGHT = "Ybcoin"
