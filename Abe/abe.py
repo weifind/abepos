@@ -1296,13 +1296,13 @@ class Abe:
         page['template'] = '%(body)s'
         page['body'] = body
 
-    def handle_top100balances(abe, page):
+    def handle_top30balances(abe, page):
 	"""获取地址余额top100"""
 	sql = """SELECT pubkey_hash,balance FROM pubkey order by balance desc limit 30;"""
 	rows = abe.store.selectall(sql)
 	version = '8c'
         version = version.decode('hex')
-        page['title'] = 'Ybcoin地址余额top100'
+        page['title'] = 'Ybcoin地址余额top30'
         body = page['body']
         body += ['<table><tr><td>排名</td><td>地址</td><td>余额</td></tr>']
         index = 1
@@ -1338,11 +1338,11 @@ class Abe:
             page['body'] += ['</li>\n']
         page['body'] += ['</ul>\n']
 
-    def q_gettop100balances(abe, page, chain):
+    def q_gettop30balances(abe, page, chain):
 	"""获取地址余额top100"""
 	if chain is None:
-		return '返回地址余额top100\n' \
-			'/chain/CHAIN/q/gettop100balances\n'
+		return '返回地址余额top30\n' \
+			'/chain/CHAIN/q/gettop30balances\n'
 	sql = """SELECT pubkey_hash,balance FROM pubkey order by balance desc limit 30;"""
 	rows = abe.store.selectall(sql)
 	version = chain['address_version']
