@@ -64,6 +64,7 @@ DEFAULT_TEMPLATE = """
 </head>
 <body>
     <h1 class="search_logo"><a href="%(dotdot)schains"><img src="%(dotdot)s%(STATIC_PATH)slogo32.png" alt="Abe logo" /></a> %(h1)s</h1>
+    <a href="/top30balances" style="position: absolute;top: 50px;right: 20px;">新元宝地址余额TOP30</a>
     <div class="list">%(body)s
     <p style="font-size: smaller">
         <span style="font-style: italic">
@@ -1297,7 +1298,7 @@ class Abe:
         page['body'] = body
 
     def handle_top30balances(abe, page):
-	"""获取地址余额top100"""
+	"""获取地址余额top30"""
 	sql = """SELECT pubkey_hash,balance FROM pubkey order by balance desc limit 30;"""
 	rows = abe.store.selectall(sql)
 	version = '8c'
@@ -1339,7 +1340,7 @@ class Abe:
         page['body'] += ['</ul>\n']
 
     def q_gettop30balances(abe, page, chain):
-	"""获取地址余额top100"""
+	"""获取地址余额top30"""
 	if chain is None:
 		return '返回地址余额top30\n' \
 			'/chain/CHAIN/q/gettop30balances\n'
